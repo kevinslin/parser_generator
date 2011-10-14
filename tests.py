@@ -7,7 +7,6 @@ class TestScanner(unittest.TestCase):
     def setUp(self):
         self.compiler = compiler.Scanner("../RRSheepNoise.txt") #FIXME: use a better test case
         
-
     def test_get_token(self):
         self.assertTrue(self.compiler.get_token(";") == 0)
         self.assertTrue(self.compiler.get_token(":") == 1)

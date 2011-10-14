@@ -1,9 +1,8 @@
 import collections
 import re
+import simplelog
 
 from utils import *
-import simplelog
-import simplecache
 
 class CompilerBase(object):
     """
@@ -41,27 +40,27 @@ class Scanner(CompilerBase):
         super(Scanner, self).__init__()
         self.output = []
         self.bnf_file = None
-        self.input_split = None #input split into words
         self.cursor_pos = 0
 
         #initialization
         self._initialize_re()
         self._get_input(filename)
-        self._split_words()
-        return
     
     def _get_input(self, filename):
         """
         Read in the input 
         """
         with open(filename, "rb") as fh:
-            self.bnf_file = fh.read()
+            self.bnf_file = fh.readlines()
 
-    def _split_words(self):
+    def _split_words(self, line):
         """
         Split input into words
+        @param:
+        line - given line of text
         """
-        self.input_split = re.split("\s+", self.bnf_file)
+        words = re.split("\s+", line)
+        return words
     
     def get_token(self, word):
         """
@@ -75,10 +74,12 @@ class Scanner(CompilerBase):
         """
         Run scanner
         """
-        for word in self.input_split:
-            token = self.get_token(word)
-            if (token):
-                self.output.append({"word":word, "token":token})
+        for lino, line in enumerate(self.bnf_file, start = 1):
+            words = self._split_words(line)
+            for word in words:
+                token = self.get_token(word)
+                self.output.append({"word":word, "token":token, "lino":lino})
+                    #TODO: fail message
         return self.output
 
 class Parser(CompilerBase):
@@ -89,10 +90,11 @@ class Parser(CompilerBase):
         self.input_pos = 0
         self.token = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
                             "EPSILON", "SYMBOL", "EOF")
-        self.symbol_table = None
+        self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
+                            "RIGHTHANDSIDE", "SYMBOLLIST")
+        self.state = -1
 
         self.output = []
-        self.state = {}
 
         #initialization
         self._initialize_re()
@@ -105,18 +107,63 @@ class Parser(CompilerBase):
         self.input_pos += 1
         return word
 
+    @simplelog.dump_func()
     def is_grammar(self, word):
         """
         Checks if word is goal
         """
-        print("checking if word is a grammar")
-        if word == self.token.SYMBOL:
+        self.state = self._state.GRAMMAR
+        if (word['token'] == self.token.SYMBOL):
             word = self.next_word()
-            if word == self.token.DERIVES:
+            if (word['token'] == self.token.DERIVES):
                 word = self.next_word()
+                if self.is_production_list(word):
+                    word = self.next_word()
+                    if (word['token'] == self.token.EOF):
+                        print ("successful parse")
+                        return True
+        else:
+            self.fail()
+            return False
 
+    @simplelog.dump_func()
+    def is_production_list(self, word):
+        """
+        Check if a word is a production list
+        """
+        self.state = self._state.PRODUCTIONLIST
+        if self.is_production_set(word):
+            word = self.next_word()
+            if (word['token'] == self.token.SEMICOLON):
+                return True
+        else:
+            self.fail()
+            return False
 
+    @simplelog.dump_func()
+    def is_production_set(self, word):
+        """
+        Check if word is a production set
+        """
+        return False
 
+    def fail(self):
+        """
+        Dump out information regarding failure
+        """
+        print ("failure")
+        error_msg = ""
+        word = self.input_scan[self.input_pos]
+        error_msg += "error!\n"
+        error_msg += "current state: " + str(self.state) + "\n"
+        error_msg += "line number: " + str(word["lino"]) + "\n"
+        error_msg += "word: " + word['word'] + "\n"
+        print (error_msg) 
+        from pprint import pprint
+        pprint(self.input_scan)
+        return False
+
+    @simplelog.dump_func()
     def execute(self):
         """
         Run parser
@@ -124,7 +171,6 @@ class Parser(CompilerBase):
         word = self.next_word()
         if self.is_grammar(word):
             word = self.next_word()
-            sl.debug("found a grammar")
             if (word['token'] == self.token.EOF):
                 return True
             else:
@@ -137,9 +183,13 @@ class Parser(CompilerBase):
 
 if __name__ == "__main__":
     sl = simplelog.sl
+    sl.quiet()
+    sl.debug("=========")
+    sl.debug("new trial")
     s = Scanner("../RRSheepNoise.txt")
     r = s.execute()
     p = Parser(r)
+    r_p = p.execute()
 
     
 

@@ -4,14 +4,19 @@ class Enum(dict):
     """
     C enum substitute
     """
+    #TODO: get key for value
     def __init__(self, *args):
         super(Enum, self).__init__()
         for num, arg in enumerate(args):
             self.__setitem__(arg, num)
 
     def __getattr__(self, name):
+        """
+        Return attribute if it exists in the dictionary
+        """
         if self.__contains__(name):
             return self.__getitem__(name)
+    
 
         
 
@@ -52,4 +57,6 @@ class SimpleDict(collections.defaultdict):
     def keys(self):
         return list(self)
 
-
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
