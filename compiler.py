@@ -40,6 +40,7 @@ class CompilerBase(object):
         """
         Generate the dfa tables for all given dfa transitions
         """
+        self.DFA_TABLE = []
         for name, dfa in self.DFA:
             self.DFA_TABLE.append(self._gen_tables(dfa, name))
         return self.DFA_TABLE
@@ -60,9 +61,6 @@ class CompilerBase(object):
 
 
         
-
-        
-
 class Scanner(CompilerBase):
     def __init__(self, filename):
         super(Scanner, self).__init__()
@@ -107,28 +105,59 @@ class Scanner(CompilerBase):
         self.cursor += 1
         return out
 
-    def next_word(self, context):
+    def rollback(self):
+        """
+        Rollback to earlier character
+        """
+        #TODO: catch error if cursor goes under 0
+        self.cursor -=1
+
+    @simplelog.dump_func()
+    def next_word(self):
         """
         Get the enxt word of the input
         @param:
         context - the dfa object, the list
         """
-        state = 0
-        lexeme = ""
-        stack = collections.deque()
-        stack.appendleft(-1)
-        
-        while (state >= 0):
-            char_curr = self.next_char()
-            lexeme += char_curr
+        _STATE = Enum("ERROR", "BAD", start = -2)
 
-        return
+        for table_classifier, table_transition, table_token_type, state_legal in \
+                self.DFA_TABLE:
+
+            state = 0
+            lexeme = ""
+            stack = collections.deque()
+            stack.appendleft(_STATE.BAD)
+
+            while (state != _STATE.ERROR):
+                char_curr = self.next_char()
+                lexeme += char_curr
+                if state in state_legal:
+                    stack.clear()
+                stack.appendleft(state)
+                try:
+                    cat = table_classifier[char_curr]
+                    state = table_transition[cat][state]
+                except KeyError:
+                    state = _STATE.ERROR
+            
+            while ((state not in state_legal) and (state != _STATE.BAD)):
+                state = stack.popleft()
+                lexeme = lexeme[:-1]
+                self.rollback()
+                if state in state_legal:
+                    return (lexeme, table_token_type[state])
+        return False, False
         
     def execute(self):
         """
         Run scanner
         """
-        word = self.next_word()
+        
+        word, token_type = self.next_word()
+        self.output.append({"word":word, "type":token_type})
+        return self.output
+
         #for lino, line in enumerate(self.bnf_file, start = 1):
             #words = self._split_words(line)
             #for word in words:

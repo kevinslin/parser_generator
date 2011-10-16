@@ -16,8 +16,9 @@ class TestScanner(unittest.TestCase):
         self.DFA_REG.add_edge(1, 2, "0123456789")
         self.DFA_REG.add_edge(2, 2, "0123456789")
 
-        self.compiler = compiler.Scanner("../RRSheepNoise.txt") #FIXME: use a better test case
+        self.compiler = compiler.Scanner("test/reg.txt") #FIXME: use a better test case
         self.compiler.DFA.append(("register", self.DFA_REG))
+        self.compiler._initialize_dfa()
 
     @unittest.skip("skipping")
     def test_get_token(self):
@@ -30,7 +31,8 @@ class TestScanner(unittest.TestCase):
     
     def test_initialize_dfa(self):
         r = self.compiler._initialize_dfa()
-        expected_results = ({'r': 0, '0123456789': 1}, 
+        expected_results = ({'1': 1, '0': 1, '3': 1, '2': 1, '5': 1, 
+                            '4': 1, '7': 1, '6': 1, '9': 1, '8': 1, 'r': 0}, 
                             {0: {0: 1}, 1: {1: 2, 2: 2}}, 
                             {2: "register"},
                             set([0,1,2]))
@@ -38,12 +40,19 @@ class TestScanner(unittest.TestCase):
 
     def test_gen_table(self):
         r = self.compiler._gen_tables(self.DFA_REG, name = "register")
-        expected_results = ({'r': 0, '0123456789': 1}, 
+        expected_results = ({'1': 1, '0': 1, '3': 1, '2': 1, '5': 1,
+                            '4': 1, '7': 1, '6': 1, '9': 1, '8': 1, 'r': 0}, 
                             {0: {0: 1}, 1: {1: 2, 2: 2}}, 
                             {2: "register"},
                             set([0,1,2]))
-        sl.debug(r)
         self.assertTrue(r == expected_results)
+    
+    def test_scanner(self):
+        r = self.compiler.next_word()
+        expected_word = "register"
+        self.assertTrue(r == expected_word)
+        print (r)
+
 
     def tearDown(self):
         return

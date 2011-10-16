@@ -7,9 +7,14 @@ class Enum(dict):
     C enum substitute
     """
     #TODO: get key for value
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         super(Enum, self).__init__()
-        for num, arg in enumerate(args):
+        if kwargs.has_key("start"):
+            start = kwargs["start"]
+        else:
+            start = 0
+
+        for num, arg in enumerate(args, start):
             self.__setitem__(arg, num)
 
     def __getattr__(self, name):
@@ -53,9 +58,10 @@ def bfs(g, startnode, **kwargs):
             #got a new transition
             if transition not in visited_transitions:
                 visited_transitions.add(transition)
-                table_classifier[transition] =  acc_transition
+                for t in transition:
+                    table_classifier[t] =  acc_transition 
                 acc_transition += 1
-            transition_class = table_classifier[transition]
+            transition_class = table_classifier[transition[0]] #only want one char
             #add new valid state to transition table
             table_transition[transition_class][state] = h
             #check if we have a valid terminal state
