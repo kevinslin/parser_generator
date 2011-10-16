@@ -11,6 +11,8 @@ class CompilerBase(object):
     """
     def __init__(self):
         self.RE = []
+        self.DFA = []
+        self.DFA_TABLE = [] #tuple object, 
 
     def _initialize_re(self, *args, **kwargs):
         """
@@ -34,13 +36,39 @@ class CompilerBase(object):
         self.RE.append({'name':'RE_EOF',
                         'pattern' : re.compile(""),
                         'token' : 5})
+    def _initialize_dfa(self, *args, **kwargs):
+        """
+        Generate the dfa tables for all given dfa transitions
+        """
+        for name, dfa in self.DFA:
+            self.DFA_TABLE.append(self._gen_tables(dfa, name))
+        return self.DFA_TABLE
+
+    def _gen_tables(self, dfa, name):
+        """
+        Generate the dfa tables with given list of DFA's
+        @param:
+        dfa - the minimized determistic finite automate
+        @return:
+        tuple consisting of classifier table, transition table, token table
+        and set of legal states
+        """
+        r = bfs(dfa, startnode = 0)
+        for key in r[2]:
+            r[2][key] = name
+        return r
+
+
+        
+
+        
 
 class Scanner(CompilerBase):
     def __init__(self, filename):
         super(Scanner, self).__init__()
         self.output = []
         self.bnf_file = None
-        self.cursor_pos = 0
+        self.cursor = 0
 
         #initialization
         self._initialize_re()
@@ -51,7 +79,7 @@ class Scanner(CompilerBase):
         Read in the input 
         """
         with open(filename, "rb") as fh:
-            self.bnf_file = fh.readlines()
+            self.bnf_file = fh.read()
 
     def _split_words(self, line):
         """
@@ -69,18 +97,45 @@ class Scanner(CompilerBase):
         for re in self.RE:
             if re['pattern'].match(word):
                 return re['token']
+
+    def next_char(self):
+        """
+        Get the next character of the input
+        """
+        #TODO: catch out of bounds error
+        out = self.bnf_file[self.cursor]
+        self.cursor += 1
+        return out
+
+    def next_word(self, context):
+        """
+        Get the enxt word of the input
+        @param:
+        context - the dfa object, the list
+        """
+        state = 0
+        lexeme = ""
+        stack = collections.deque()
+        stack.appendleft(-1)
+        
+        while (state >= 0):
+            char_curr = self.next_char()
+            lexeme += char_curr
+
+        return
         
     def execute(self):
         """
         Run scanner
         """
-        for lino, line in enumerate(self.bnf_file, start = 1):
-            words = self._split_words(line)
-            for word in words:
-                token = self.get_token(word)
-                self.output.append({"word":word, "token":token, "lino":lino})
-                    #TODO: fail message
-        return self.output
+        word = self.next_word()
+        #for lino, line in enumerate(self.bnf_file, start = 1):
+            #words = self._split_words(line)
+            #for word in words:
+                #token = self.get_token(word)
+                #self.output.append({"word":word, "token":token, "lino":lino})
+                    ##TODO: fail message
+        #return self.output
 
 class Parser(CompilerBase):
     def __init__(self, input_scan):
@@ -188,8 +243,8 @@ if __name__ == "__main__":
     sl.debug("new trial")
     s = Scanner("../RRSheepNoise.txt")
     r = s.execute()
-    p = Parser(r)
-    r_p = p.execute()
+    #p = Parser(r)
+    #r_p = p.execute()
 
     
 
