@@ -3,6 +3,7 @@ import re
 import simplelog
 
 from utils import *
+from pylibs.data_structures import graph
 
 class CompilerBase(object):
     """
@@ -12,7 +13,9 @@ class CompilerBase(object):
     def __init__(self):
         self.RE = []
         self.DFA = []
-        self.DFA_TABLE = [] #tuple object, 
+        self.DFA_TABLE = [] #tuple object,
+        self.TOKENS = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
+                            "EPSILON", "SYMBOL", "EOF")
 
     def _initialize_re(self, *args, **kwargs):
         """
@@ -41,11 +44,19 @@ class CompilerBase(object):
         Generate the dfa tables for all given dfa transitions
         """
         self.DFA_TABLE = []
+
+        SEMICOLON_DFA = graph.Graph()
+        SEMICOLON_DFA .add_node(0, "NT")
+        SEMICOLON_DFA .add_node(1, "T")
+        SEMICOLON_DFA .add_edge(0, 1, ";")
+
+        self.DFA.append((self.TOKENS.SEMICOLON, SEMICOLON_DFA))
+        
         for name, dfa in self.DFA:
-            self.DFA_TABLE.append(self._gen_tables(dfa, name))
+            self.DFA_TABLE.append(self._gen_tables(name, dfa))
         return self.DFA_TABLE
 
-    def _gen_tables(self, dfa, name):
+    def _gen_tables(self, name, dfa):
         """
         Generate the dfa tables with given list of DFA's
         @param:
@@ -58,6 +69,14 @@ class CompilerBase(object):
         for key in r[2]:
             r[2][key] = name
         return r
+    
+    def initialize(self):
+        """
+        Initialize DFA tables
+        """
+        self._initialize_re()
+        self._initialize_dfa()
+
 
 
         
@@ -67,17 +86,18 @@ class Scanner(CompilerBase):
         self.output = []
         self.bnf_file = None
         self.cursor = 0
+        self.file_length = 0
 
         #initialization
-        self._initialize_re()
         self._get_input(filename)
     
     def _get_input(self, filename):
         """
-        Read in the input 
+        Read in the input and get file length
         """
         with open(filename, "rb") as fh:
             self.bnf_file = fh.read()
+        self.file_length = len(self.bnf_file)
 
     def _split_words(self, line):
         """
@@ -99,11 +119,18 @@ class Scanner(CompilerBase):
     def next_char(self):
         """
         Get the next character of the input
+        and advance cursor position
         """
         #TODO: catch out of bounds error
-        out = self.bnf_file[self.cursor]
+        out = self._next_char()
         self.cursor += 1
         return out
+
+    def _next_char(self):
+        """
+        Get the next character of the input
+        """
+        return self.bnf_file[self.cursor]
 
     def rollback(self):
         """
@@ -119,11 +146,14 @@ class Scanner(CompilerBase):
         @param:
         context - the dfa object, the list
         """
+        import pdb
+        pdb.set_trace()
         _STATE = Enum("ERROR", "BAD", start = -2)
-
+        
+        #Try every regex to try to get a valid word
         for table_classifier, table_transition, table_token_type, state_legal in \
                 self.DFA_TABLE:
-
+            
             state = 0
             lexeme = ""
             stack = collections.deque()
@@ -142,20 +172,34 @@ class Scanner(CompilerBase):
                     state = _STATE.ERROR
             
             while ((state not in state_legal) and (state != _STATE.BAD)):
+                #roll backed all the way, this isn't the right word
                 state = stack.popleft()
                 lexeme = lexeme[:-1]
                 self.rollback()
+
+                if (lexeme == ""):
+                    break
                 if state in state_legal:
                     return (lexeme, table_token_type[state])
-        return False, False
+                #TODO: too much roll back error
+        return False, False, False
         
     def execute(self):
         """
         Run scanner
         """
-        
-        word, token_type = self.next_word()
-        self.output.append({"word":word, "type":token_type})
+        lino = 1 
+        while (self.cursor < self.file_length):
+            char = self._next_char()
+            #strip white space from input
+            if (char == " "):
+                self.next_char()
+            elif (char == "\n"):
+                lino += 1
+                self.next_char()
+            else:
+                word, token_type = self.next_word()
+                self.output.append({"word":word, "type":token_type, "lino": lino})
         return self.output
 
         #for lino, line in enumerate(self.bnf_file, start = 1):

@@ -19,16 +19,8 @@ class TestScanner(unittest.TestCase):
         self.compiler = compiler.Scanner("test/reg.txt") #FIXME: use a better test case
         self.compiler.DFA.append(("register", self.DFA_REG))
         self.compiler._initialize_dfa()
-
-    @unittest.skip("skipping")
-    def test_get_token(self):
-        self.assertTrue(self.compiler.get_token(";") == 0)
-        self.assertTrue(self.compiler.get_token(":") == 1)
-        self.assertTrue(self.compiler.get_token("|") == 2) 
-        self.assertTrue(self.compiler.get_token("EPSILON") == 3)
-        self.assertTrue(self.compiler.get_token("boo") == 4)
-        return
     
+    @unittest.skip("skip")
     def test_initialize_dfa(self):
         r = self.compiler._initialize_dfa()
         expected_results = ({'1': 1, '0': 1, '3': 1, '2': 1, '5': 1, 
@@ -39,7 +31,7 @@ class TestScanner(unittest.TestCase):
         self.assertTrue(r == [expected_results])
 
     def test_gen_table(self):
-        r = self.compiler._gen_tables(self.DFA_REG, name = "register")
+        r = self.compiler._gen_tables("register", self.DFA_REG)
         expected_results = ({'1': 1, '0': 1, '3': 1, '2': 1, '5': 1,
                             '4': 1, '7': 1, '6': 1, '9': 1, '8': 1, 'r': 0}, 
                             {0: {0: 1}, 1: {1: 2, 2: 2}}, 
@@ -47,15 +39,26 @@ class TestScanner(unittest.TestCase):
                             set([0,1,2]))
         self.assertTrue(r == expected_results)
     
-    def test_scanner(self):
+    def test_next_word(self):
         r = self.compiler.next_word()
-        expected_word = "register"
+        expected_word = ("r10", "register")
         self.assertTrue(r == expected_word)
-        print (r)
 
+    def test_scanner(self):
+        r = self.compiler.execute()
+        expected_word = [{'lino': 1, 'type': 'register', 'word': 'r10'}]
+        self.assertTrue(r == expected_word)
+
+    def test_semicolon(self):
+        self.compiler._get_input("test/semicolon.txt")
+        self.compiler._initialize_dfa()
+        sl.info(self.compiler.DFA_TABLE)
+        r = self.compiler.execute()
+        print (r)
 
     def tearDown(self):
         return
+
 @unittest.skip("skipping")
 class TestParser(unittest.TestCase):
     def setUp(self):

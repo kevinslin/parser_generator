@@ -8,7 +8,12 @@ class Enum(dict):
     """
     #TODO: get key for value
     def __init__(self, *args, **kwargs):
+        """
+        Initialize with default start value of 0 but this can be changed
+        with keyword argument start
+        """
         super(Enum, self).__init__()
+
         if kwargs.has_key("start"):
             start = kwargs["start"]
         else:
