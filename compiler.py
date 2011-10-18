@@ -154,6 +154,7 @@ class Scanner(CompilerBase):
 
         #initialization
         self._get_input(filename)
+        self.initialize()
     
     def _get_input(self, filename):
         """
@@ -277,22 +278,20 @@ class Parser(CompilerBase):
         Parser for bnf langauge
         """
         super(Parser, self).__init__()
-
         self.input_scan = input_scan 
-        self.input_pos = 0
+        self.index = 0
+
         self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
                             "RIGHTHANDSIDE", "SYMBOLLIST", start = 6)
-        self.state = -1
-
+        self.exepcted_state = -1
         self.output = []
-        super(Parser, self).__init__()
 
     def next_word(self):
         """
         get next word
         """
-        word = self.input_scan[self.input_pos]
-        self.input_pos += 1
+        word = self.input_scan[self.index]
+        self.index += 1
         return word
 
     @simplelog.dump_func()
@@ -300,14 +299,16 @@ class Parser(CompilerBase):
         """
         Checks if word is goal
         """
-        self.state = self._state.GRAMMAR
-        if (word['token'] == self.tokens.SYMBOL):
+        import pdb
+        pdb.set_trace()
+        self.exepcted_state = self._state.GRAMMAR #log current expected state 
+        if (word['type'] == self.TOKENS.SYMBOL):
             word = self.next_word()
-            if (word['token'] == self.tokens.DERIVES):
+            if (word['type'] == self.TOKENS.DERIVES):
                 word = self.next_word()
                 if self.is_production_list(word):
                     word = self.next_word()
-                    if (word['token'] == self.tokens.EOF):
+                    if (word['type'] == self.TOKENS.EOF):
                         print ("successful parse")
                         return True
         else:
@@ -319,10 +320,10 @@ class Parser(CompilerBase):
         """
         Check if a word is a production list
         """
-        self.state = self._state.PRODUCTIONLIST
+        self.exepcted_state = self._state.PRODUCTIONLIST
         if self.is_production_set(word):
             word = self.next_word()
-            if (word['token'] == self.tokens.SEMICOLON):
+            if (word['type'] == self.TOKENS.SEMICOLON):
                 return True
         else:
             self.fail()
@@ -335,15 +336,18 @@ class Parser(CompilerBase):
         """
         return False
 
+    @simplelog.dump_func()
     def fail(self):
         """
         Dump out information regarding failure
         """
+        import pdb
+        pdb.set_trace()
         print ("failure")
         error_msg = ""
-        word = self.input_scan[self.input_pos]
+        word = self.input_scan[self.index]
         error_msg += "error!\n"
-        error_msg += "current state: " + str(self.state) + "\n"
+        error_msg += "current.exepcted_state: " + str(self.exepcted_state) + "\n"
         error_msg += "line number: " + str(word["lino"]) + "\n"
         error_msg += "word: " + word['word'] + "\n"
         print (error_msg) 
@@ -356,10 +360,12 @@ class Parser(CompilerBase):
         """
         Run parser
         """
+        import pdb
+        pdb.set_trace()
         word = self.next_word()
         if self.is_grammar(word):
             word = self.next_word()
-            if (word['token'] == self.tokens.EOF):
+            if (word['type'] == self.TOKENS.EOF):
                 return True
             else:
                 print ("could not parse")
