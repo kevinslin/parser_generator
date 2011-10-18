@@ -21,6 +21,7 @@ class CompilerBase(object):
         """
         Initialize regular expressions
         """
+        #TODO: remove this 
         self.RE.append({'name' : 'RE_SEMICOLON',
                         'pattern' : re.compile(";"),
                         'token' : 0})
@@ -40,6 +41,7 @@ class CompilerBase(object):
                         'pattern' : re.compile(""),
                         'token' : 5})
 
+    @simplelog.dump_func(func_name_only = True)
     def _initialize_dfa(self, *args, **kwargs):
         """
         Generate the dfa tables for all given dfa transitions
@@ -142,6 +144,7 @@ class CompilerBase(object):
 
         
 class Scanner(CompilerBase):
+    @simplelog.dump_func(func_name_only = True)
     def __init__(self, filename):
         super(Scanner, self).__init__()
         self.output = []
@@ -270,20 +273,19 @@ class Scanner(CompilerBase):
 
 class Parser(CompilerBase):
     def __init__(self, input_scan):
+        """
+        Parser for bnf langauge
+        """
         super(Parser, self).__init__()
 
         self.input_scan = input_scan 
         self.input_pos = 0
-        self.token = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
-                            "EPSILON", "SYMBOL", "EOF")
         self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
-                            "RIGHTHANDSIDE", "SYMBOLLIST")
+                            "RIGHTHANDSIDE", "SYMBOLLIST", start = 6)
         self.state = -1
 
         self.output = []
-
-        #initialization
-        self._initialize_re()
+        super(Parser, self).__init__()
 
     def next_word(self):
         """
@@ -299,13 +301,13 @@ class Parser(CompilerBase):
         Checks if word is goal
         """
         self.state = self._state.GRAMMAR
-        if (word['token'] == self.token.SYMBOL):
+        if (word['token'] == self.tokens.SYMBOL):
             word = self.next_word()
-            if (word['token'] == self.token.DERIVES):
+            if (word['token'] == self.tokens.DERIVES):
                 word = self.next_word()
                 if self.is_production_list(word):
                     word = self.next_word()
-                    if (word['token'] == self.token.EOF):
+                    if (word['token'] == self.tokens.EOF):
                         print ("successful parse")
                         return True
         else:
@@ -320,7 +322,7 @@ class Parser(CompilerBase):
         self.state = self._state.PRODUCTIONLIST
         if self.is_production_set(word):
             word = self.next_word()
-            if (word['token'] == self.token.SEMICOLON):
+            if (word['token'] == self.tokens.SEMICOLON):
                 return True
         else:
             self.fail()
@@ -357,7 +359,7 @@ class Parser(CompilerBase):
         word = self.next_word()
         if self.is_grammar(word):
             word = self.next_word()
-            if (word['token'] == self.token.EOF):
+            if (word['token'] == self.tokens.EOF):
                 return True
             else:
                 print ("could not parse")
@@ -372,9 +374,9 @@ if __name__ == "__main__":
     sl.quiet()
     sl.debug("=========")
     sl.debug("new trial")
-    s = Scanner("../RRSheepNoise.txt")
+    s = Scanner("test/RRSheepNoise.txt")
     r = s.execute()
-    #p = Parser(r)
+    p = Parser(r)
     #r_p = p.execute()
 
     
