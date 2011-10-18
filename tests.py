@@ -45,16 +45,33 @@ class TestScanner(unittest.TestCase):
         self.assertTrue(r == expected_word)
 
     def test_scanner(self):
+        self.compiler._get_input("test/RRSheepNoise.txt")
         r = self.compiler.execute()
-        expected_word = [{'lino': 1, 'type': 'register', 'word': 'r10'}]
-        self.assertTrue(r == expected_word)
+        import pdb
+        pdb.set_trace()
+        #expected_word = [{'lino': 1, 'type': 'register', 'word': 'r10'}]
+        #self.assertTrue(r == expected_word)
 
     def test_semicolon(self):
         self.compiler._get_input("test/semicolon.txt")
         self.compiler._initialize_dfa()
         sl.info(self.compiler.DFA_TABLE)
         r = self.compiler.execute()
-        print (r)
+        self.assertTrue(r == [{'lino': 1, 'type': 0, 'word': ';'}])
+
+    def test_derives(self):
+        self.compiler._get_input("test/derives.txt")
+        self.compiler._initialize_dfa()
+        sl.info(self.compiler.DFA_TABLE)
+        r = self.compiler.execute()
+        self.assertTrue(r == [{'lino': 1, 'type': 1, 'word': '|'}])
+
+    def test_symbol(self):
+        self.compiler._get_input("test/symbol.txt")
+        self.compiler._initialize_dfa()
+        sl.info(self.compiler.DFA_TABLE)
+        r = self.compiler.execute()
+        self.assertTrue(r == [{'lino': 1, 'type': 4, 'word': 'foo'}])
 
     def tearDown(self):
         return

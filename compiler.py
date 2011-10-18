@@ -39,6 +39,7 @@ class CompilerBase(object):
         self.RE.append({'name':'RE_EOF',
                         'pattern' : re.compile(""),
                         'token' : 5})
+
     def _initialize_dfa(self, *args, **kwargs):
         """
         Generate the dfa tables for all given dfa transitions
@@ -46,11 +47,30 @@ class CompilerBase(object):
         self.DFA_TABLE = []
 
         SEMICOLON_DFA = graph.Graph()
-        SEMICOLON_DFA .add_node(0, "NT")
-        SEMICOLON_DFA .add_node(1, "T")
-        SEMICOLON_DFA .add_edge(0, 1, ";")
+        SEMICOLON_DFA.add_node(0, "NT")
+        SEMICOLON_DFA.add_node(1, "T")
+        SEMICOLON_DFA.add_edge(0, 1, ";")
+
+        DERIVES_DFA = graph.Graph()
+        DERIVES_DFA.add_node(0, "NT")
+        DERIVES_DFA.add_node(1, "T")
+        DERIVES_DFA.add_edge(0, 1, "|")
+
+        lower_case_letters = "".join(map(chr, xrange(97, 123)))
+        upper_case_letters = "".join(map(chr, xrange(65, 91)))
+        numbers = "".join(map(chr, xrange(48, 58)))
+        alpha_numeric = lower_case_letters + upper_case_letters + numbers
+        SYMBOL_DFA = graph.Graph()
+        SYMBOL_DFA.add_node(0, "NT")
+        SYMBOL_DFA.add_node(1, "T")
+        SYMBOL_DFA.add_edge(0, 1, alpha_numeric)
+        SYMBOL_DFA.add_edge(1, 1, alpha_numeric)
+
+
 
         self.DFA.append((self.TOKENS.SEMICOLON, SEMICOLON_DFA))
+        self.DFA.append((self.TOKENS.DERIVES, DERIVES_DFA))
+        self.DFA.append((self.TOKENS.SYMBOL, SYMBOL_DFA))
         
         for name, dfa in self.DFA:
             self.DFA_TABLE.append(self._gen_tables(name, dfa))
@@ -146,8 +166,6 @@ class Scanner(CompilerBase):
         @param:
         context - the dfa object, the list
         """
-        import pdb
-        pdb.set_trace()
         _STATE = Enum("ERROR", "BAD", start = -2)
         
         #Try every regex to try to get a valid word
@@ -182,7 +200,7 @@ class Scanner(CompilerBase):
                 if state in state_legal:
                     return (lexeme, table_token_type[state])
                 #TODO: too much roll back error
-        return False, False, False
+        return (False, False)
         
     def execute(self):
         """
@@ -198,7 +216,14 @@ class Scanner(CompilerBase):
                 lino += 1
                 self.next_char()
             else:
+                import pdb
+                pdb.set_trace()
                 word, token_type = self.next_word()
+                if word is False:
+                    #TODO: make a better exception 
+                    word = self.bnf_file[self.cursor:self.bnf_file.find(" ")]
+                    print (word + " is invalid")
+                    raise Exception("Got an invalid character")
                 self.output.append({"word":word, "type":token_type, "lino": lino})
         return self.output
 
