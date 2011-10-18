@@ -13,7 +13,7 @@ class CompilerBase(object):
     def __init__(self):
         self.RE = []
         self.DFA = []
-        self.DFA_TABLE = [] #tuple object,
+        self.DFA_TABLE = [] #tuple object (token type, token dfa) 
         self.TOKENS = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
                             "EPSILON", "SYMBOL", "EOF")
 
@@ -54,7 +54,48 @@ class CompilerBase(object):
         DERIVES_DFA = graph.Graph()
         DERIVES_DFA.add_node(0, "NT")
         DERIVES_DFA.add_node(1, "T")
-        DERIVES_DFA.add_edge(0, 1, "|")
+        DERIVES_DFA.add_edge(0, 1, ":")
+
+        ALSODERIVES_DFA = graph.Graph()
+        ALSODERIVES_DFA.add_node(0, "NT")
+        ALSODERIVES_DFA.add_node(1, "T")
+        ALSODERIVES_DFA.add_edge(0, 1, "|")
+
+        EPSILON_DFA = graph.Graph()
+        EPSILON_DFA.add_node(0, "NT") 
+        EPSILON_DFA.add_node(1, "NT") #E
+        EPSILON_DFA.add_node(2, "NT") #P
+        EPSILON_DFA.add_node(3, "NT") #S
+        EPSILON_DFA.add_node(4, "NT") #I
+        EPSILON_DFA.add_node(5, "NT") #L
+        EPSILON_DFA.add_node(6, "NT") #O
+        EPSILON_DFA.add_node(7, "T") #N
+
+        EPSILON_DFA.add_node(8, "NT")
+        EPSILON_DFA.add_node(9, "NT")
+        EPSILON_DFA.add_node(10, "NT")
+        EPSILON_DFA.add_node(11, "NT")
+        EPSILON_DFA.add_node(12, "NT")
+        EPSILON_DFA.add_node(13, "NT")
+        EPSILON_DFA.add_node(14, "T")
+
+        EPSILON_DFA.add_edge(0, 1, "E")
+        EPSILON_DFA.add_edge(1, 2, "P")
+        EPSILON_DFA.add_edge(2, 3, "S")
+        EPSILON_DFA.add_edge(3, 4, "I")
+        EPSILON_DFA.add_edge(4, 5, "L")
+        EPSILON_DFA.add_edge(5, 6, "O")
+        EPSILON_DFA.add_edge(6, 7, "N")
+
+        EPSILON_DFA.add_edge(0, 8, "e")
+        EPSILON_DFA.add_edge(8, 9, "p")
+        EPSILON_DFA.add_edge(9, 10, "s")
+        EPSILON_DFA.add_edge(10, 11, "i")
+        EPSILON_DFA.add_edge(11, 12, "l")
+        EPSILON_DFA.add_edge(12, 13, "o")
+        EPSILON_DFA.add_edge(13, 14, "n")
+
+        EPSILON_DFA.add_edge(1, 9, "p") #Episilon
 
         lower_case_letters = "".join(map(chr, xrange(97, 123)))
         upper_case_letters = "".join(map(chr, xrange(65, 91)))
@@ -66,10 +107,10 @@ class CompilerBase(object):
         SYMBOL_DFA.add_edge(0, 1, alpha_numeric)
         SYMBOL_DFA.add_edge(1, 1, alpha_numeric)
 
-
-
         self.DFA.append((self.TOKENS.SEMICOLON, SEMICOLON_DFA))
         self.DFA.append((self.TOKENS.DERIVES, DERIVES_DFA))
+        self.DFA.append((self.TOKENS.ALSODERIVES, ALSODERIVES_DFA))
+        self.DFA.append((self.TOKENS.EPSILON, EPSILON_DFA))
         self.DFA.append((self.TOKENS.SYMBOL, SYMBOL_DFA))
         
         for name, dfa in self.DFA:
@@ -199,12 +240,13 @@ class Scanner(CompilerBase):
                     break
                 if state in state_legal:
                     return (lexeme, table_token_type[state])
-                #TODO: too much roll back error
+                #TODO: too much roll back error?
         return (False, False)
-        
+    
+    @simplelog.dump_func()
     def execute(self):
         """
-        Run scanner
+        Run scanner and words into tokens
         """
         lino = 1 
         while (self.cursor < self.file_length):
@@ -216,8 +258,6 @@ class Scanner(CompilerBase):
                 lino += 1
                 self.next_char()
             else:
-                import pdb
-                pdb.set_trace()
                 word, token_type = self.next_word()
                 if word is False:
                     #TODO: make a better exception 
@@ -225,15 +265,8 @@ class Scanner(CompilerBase):
                     print (word + " is invalid")
                     raise Exception("Got an invalid character")
                 self.output.append({"word":word, "type":token_type, "lino": lino})
+        self.output.append({"word":"", "type":self.TOKENS.EOF, "lino": lino})
         return self.output
-
-        #for lino, line in enumerate(self.bnf_file, start = 1):
-            #words = self._split_words(line)
-            #for word in words:
-                #token = self.get_token(word)
-                #self.output.append({"word":word, "token":token, "lino":lino})
-                    ##TODO: fail message
-        #return self.output
 
 class Parser(CompilerBase):
     def __init__(self, input_scan):

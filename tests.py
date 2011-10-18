@@ -47,31 +47,43 @@ class TestScanner(unittest.TestCase):
     def test_scanner(self):
         self.compiler._get_input("test/RRSheepNoise.txt")
         r = self.compiler.execute()
-        import pdb
-        pdb.set_trace()
-        #expected_word = [{'lino': 1, 'type': 'register', 'word': 'r10'}]
-        #self.assertTrue(r == expected_word)
+        expected = [{'lino': 1, 'type': 4, 'word': 'Goal'}, 
+                    {'lino': 1, 'type': 1, 'word': ':'}, 
+                    {'lino': 1, 'type': 4, 'word': 'SheepNoise'}, 
+                    {'lino': 2, 'type': 0, 'word': ';'}, 
+                    {'lino': 3, 'type': 4, 'word': 'SheepNoise'}, 
+                    {'lino': 3, 'type': 1, 'word': ':'}, 
+                    {'lino': 3, 'type': 4, 'word': 'baa'}, 
+                    {'lino': 3, 'type': 4, 'word': 'SheepNoise'}, 
+                    {'lino': 4, 'type': 2, 'word': '|'}, 
+                    {'lino': 4, 'type': 4, 'word': 'baa'}, 
+                    {'lino': 5, 'type': 0, 'word': ';'}, 
+                    {'lino': 6, 'type': 5, 'word': ''}]
+        self.assertTrue(r == expected)
 
     def test_semicolon(self):
         self.compiler._get_input("test/semicolon.txt")
         self.compiler._initialize_dfa()
         sl.info(self.compiler.DFA_TABLE)
         r = self.compiler.execute()
-        self.assertTrue(r == [{'lino': 1, 'type': 0, 'word': ';'}])
+        self.assertTrue(r == [{'lino': 1, 'type': 0, 'word': ';'}, 
+                                {'lino': 2, 'type': 5, 'word': ''}])
 
-    def test_derives(self):
+    def test_also_derives(self):
         self.compiler._get_input("test/derives.txt")
         self.compiler._initialize_dfa()
         sl.info(self.compiler.DFA_TABLE)
         r = self.compiler.execute()
-        self.assertTrue(r == [{'lino': 1, 'type': 1, 'word': '|'}])
+        self.assertTrue(r == [{'lino': 1, 'type': 2, 'word': '|'}, 
+                                {'lino': 2, 'type': 5, 'word': ''}])
 
     def test_symbol(self):
         self.compiler._get_input("test/symbol.txt")
         self.compiler._initialize_dfa()
         sl.info(self.compiler.DFA_TABLE)
         r = self.compiler.execute()
-        self.assertTrue(r == [{'lino': 1, 'type': 4, 'word': 'foo'}])
+        self.assertTrue(r == [{'lino': 1, 'type': 4, 'word': 'foo'}, 
+                                {'lino': 2, 'type': 5, 'word': ''}])
 
     def tearDown(self):
         return
