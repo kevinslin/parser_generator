@@ -286,6 +286,7 @@ class Parser(CompilerBase):
         self.exepcted_state = -1
         self.output = []
 
+    @simplelog.dump_func()
     def next_word(self):
         """
         get next word
@@ -298,25 +299,20 @@ class Parser(CompilerBase):
     def is_grammar(self, word):
         """
         Checks if word is goal
+        Grammer -> ProductionList
         """
         self.exepcted_state = self._state.GRAMMAR #log current expected state 
-        if (word['type'] == self.TOKENS.SYMBOL):
-            word = self.next_word()
-            if (word['type'] == self.TOKENS.DERIVES):
-                word = self.next_word()
-                if self.is_production_list(word):
-                    word = self.next_word()
-                    if (word['type'] == self.TOKENS.EOF):
-                        print ("successful parse")
-                        return True
-        else:
-            self.fail()
-            return False
+        if (self.is_production_list(word)):
+            word = next_word()
+            if(word["type"] == self.TOKENS.EOF):
+                return True
+        self.fail()
 
     @simplelog.dump_func()
     def is_production_list(self, word):
         """
         Check if a word is a production list
+        ProductionList -> ProductionSet SEMICOLON ProductionList'
         """
         import pdb
         pdb.set_trace()
@@ -325,14 +321,34 @@ class Parser(CompilerBase):
             word = self.next_word()
             if (word['type'] == self.TOKENS.SEMICOLON):
                 return True
+        elif (self.is_production_list(word)):
+            #TODO: write this correctly 
+            return True
         else:
             self.fail()
             return False
 
     @simplelog.dump_func()
+    def is_production_list_p(self, word):
+        """
+        ProductionList' -> ProductionSet SEMICOLON ProductionSet'
+                        | EPSILON
+        """
+        if (word["type"] == self.TOKENS.EPSILON):
+            return True 
+        if self.is_production_set(word):
+            word = self.next_word()
+            if (word['type'] == self.TOKENS.SEMICOLON):
+                word = self.next_word()
+                if (is_production_list_p(word)):
+                    return True
+        self.fail()
+
+    @simplelog.dump_func()
     def is_production_set(self, word):
         """
         Check if word is a production set
+        ProductionSet -> SYMBOL DERIVES RightHandSide PS'
         """
         import pdb
         pdb.set_trace()
@@ -341,37 +357,68 @@ class Parser(CompilerBase):
             if (word["type"] == self.TOKENS.DERIVES):
                 word = self.next_word()
                 if (self.is_right_hand_side(word)):
-                    return True
-        return False
+                    word = self.next_word()
+                    if (self.is_production_set_p(word)):
+                        return True
+        self.fail()
 
     @simplelog.dump_func()
-    def is_right_hand_side(word):
+    def is_production_set_p(self, word):
+        """
+        ProductionSet' -> SYMBOL DERIVES RightHandSide PS'
+                        | EPSILON
+        """
+        if (word["type"] == self.TOKENS.EPSILON):
+            return True 
+        elif(word["type"] == self.TOKENS.SYMBOL):
+            word = self.next_word()
+            if (word["type"] == self.TOKENS.DERIVES):
+                word = self.next_word()
+                if (self.is_right_hand_side(word)):
+                    return True
+        self.fail()
+
+    @simplelog.dump_func()
+    def is_right_hand_side(self, word):
         """
         Check if word is a valid right hand side
-        RH -> Symbolist
+        RH -> Symbolist 
             | Epsilon
         """
         if (self.is_symbol_list(word)):
             return True
         elif (word["type"] == self.TOKENS.EPSILON):
             return True
-        else:
-            self.fail()
+        self.fail()
 
     
     @simplelog.dump_func()
-    def is_symbol_list(word):
+    def is_symbol_list(self, word):
         """
         Check if word is valid symbolist
-        SL -> SL SYMBOL
-            |  SYMBOL
+        SL ->  SYMBOL SL'
         """
-        if (self.is_symbol_list(word)):
-            return True
+        if (word["type"] == self.TOKENS.SYMBOL):
+            word = self.next_word()
+            if (self.is_symbol_list_p(word)):
+                return True
+        self.fail()
+    
+    @simplelog.dump_func()
+    def is_symbol_list_p(self, word):
+        """
+        Perform followng Check:
+        SL' -> SYMBOL SL'
+            | EPSILON
+        """
+        if (word["type"] == self.TOKENS.EPSILON):
+            return True 
         elif (word["type"] == self.TOKENS.SYMBOL):
-            return True
-        else:
-            self.fail()
+            word = self.next_word()
+            if (is_symbol_list_p(word)):
+                return True
+        self.fail()
+
 
     @simplelog.dump_func()
     def fail(self):
@@ -391,7 +438,8 @@ class Parser(CompilerBase):
         print (error_msg) 
         from pprint import pprint
         pprint(self.input_scan)
-        return False
+        #TODO: attempt recovery
+        exit()
 
     @simplelog.dump_func()
     def execute(self):
