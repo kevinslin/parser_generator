@@ -280,6 +280,7 @@ class Parser(CompilerBase):
         super(Parser, self).__init__()
         self.input_scan = input_scan 
         self.index = 0
+        self.word = "" #FIXME: maybe not necessary
 
         self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
                             "RIGHTHANDSIDE", "SYMBOLLIST", start = 6)
@@ -296,12 +297,13 @@ class Parser(CompilerBase):
         return word
 
     @simplelog.dump_func()
-    def is_grammar(self, word):
+    def is_grammar(self):
         """
         Checks if word is goal
         Grammer -> ProductionList
         """
         self.exepcted_state = self._state.GRAMMAR #log current expected state 
+        word = self.next_word()
         if (self.is_production_list(word)):
             word = next_word()
             if(word["type"] == self.TOKENS.EOF):
@@ -446,18 +448,10 @@ class Parser(CompilerBase):
         """
         Run parser
         """
-        import pdb
-        pdb.set_trace()
-        word = self.next_word()
-        if self.is_grammar(word):
-            word = self.next_word()
-            if (word['type'] == self.TOKENS.EOF):
-                return True
-            else:
-                print ("could not parse")
-                return False
-
-
+        if self.is_grammar():
+            return True
+        else:
+            self.fail()
                 
 
 
