@@ -299,8 +299,6 @@ class Parser(CompilerBase):
         """
         Checks if word is goal
         """
-        import pdb
-        pdb.set_trace()
         self.exepcted_state = self._state.GRAMMAR #log current expected state 
         if (word['type'] == self.TOKENS.SYMBOL):
             word = self.next_word()
@@ -320,6 +318,8 @@ class Parser(CompilerBase):
         """
         Check if a word is a production list
         """
+        import pdb
+        pdb.set_trace()
         self.exepcted_state = self._state.PRODUCTIONLIST
         if self.is_production_set(word):
             word = self.next_word()
@@ -334,7 +334,44 @@ class Parser(CompilerBase):
         """
         Check if word is a production set
         """
+        import pdb
+        pdb.set_trace()
+        if (word["type"] == self.TOKENS.SYMBOL):
+            word = self.next_word()
+            if (word["type"] == self.TOKENS.DERIVES):
+                word = self.next_word()
+                if (self.is_right_hand_side(word)):
+                    return True
         return False
+
+    @simplelog.dump_func()
+    def is_right_hand_side(word):
+        """
+        Check if word is a valid right hand side
+        RH -> Symbolist
+            | Epsilon
+        """
+        if (self.is_symbol_list(word)):
+            return True
+        elif (word["type"] == self.TOKENS.EPSILON):
+            return True
+        else:
+            self.fail()
+
+    
+    @simplelog.dump_func()
+    def is_symbol_list(word):
+        """
+        Check if word is valid symbolist
+        SL -> SL SYMBOL
+            |  SYMBOL
+        """
+        if (self.is_symbol_list(word)):
+            return True
+        elif (word["type"] == self.TOKENS.SYMBOL):
+            return True
+        else:
+            self.fail()
 
     @simplelog.dump_func()
     def fail(self):
@@ -347,7 +384,8 @@ class Parser(CompilerBase):
         error_msg = ""
         word = self.input_scan[self.index]
         error_msg += "error!\n"
-        error_msg += "current.exepcted_state: " + str(self.exepcted_state) + "\n"
+        error_msg += "expected: " + str(self.exepcted_state) + "\n"
+        error_msg += "got: " + str(word["type"]) + "\n"
         error_msg += "line number: " + str(word["lino"]) + "\n"
         error_msg += "word: " + word['word'] + "\n"
         print (error_msg) 
