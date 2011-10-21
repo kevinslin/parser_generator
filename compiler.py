@@ -3,7 +3,7 @@ import re
 import simplelog
 
 from utils import *
-from pylibs.data_structures import graph
+from pylibs.data_structures import graph, tree
 
 class CompilerBase(object):
     """
@@ -108,15 +108,18 @@ class CompilerBase(object):
         SYMBOL_DFA.add_node(1, "T")
         SYMBOL_DFA.add_edge(0, 1, alpha_numeric)
         SYMBOL_DFA.add_edge(1, 1, alpha_numeric)
-
+        
+        #Order matters when adding the DFA 
         self.DFA.append((self.TOKENS.SEMICOLON, SEMICOLON_DFA))
         self.DFA.append((self.TOKENS.DERIVES, DERIVES_DFA))
         self.DFA.append((self.TOKENS.ALSODERIVES, ALSODERIVES_DFA))
         self.DFA.append((self.TOKENS.EPSILON, EPSILON_DFA))
         self.DFA.append((self.TOKENS.SYMBOL, SYMBOL_DFA))
         
+        #Generate tables for everyone
         for name, dfa in self.DFA:
             self.DFA_TABLE.append(self._gen_tables(name, dfa))
+
         return self.DFA_TABLE
 
     def _gen_tables(self, name, dfa):
@@ -146,6 +149,10 @@ class CompilerBase(object):
 class Scanner(CompilerBase):
     @simplelog.dump_func(func_name_only = True)
     def __init__(self, filename):
+        """
+        Scanner that takes a Back Naur Form (BNF) input
+        file and tokenizes it 
+        """
         super(Scanner, self).__init__()
         self.output = []
         self.bnf_file = None
@@ -209,7 +216,9 @@ class Scanner(CompilerBase):
         """
         Get the enxt word of the input
         @param:
-        context - the dfa object, the list
+        context - the dfa object, the 
+        @return
+        tuple object (value, state) 
         """
         _STATE = Enum("ERROR", "BAD", start = -2)
         
@@ -273,18 +282,21 @@ class Scanner(CompilerBase):
         return self.output
 
 class Parser(CompilerBase):
-    def __init__(self, input_scan):
+    def __init__(self, input_scan, input_raw):
         """
         Parser for bnf langauge
+        Build a parse tree for language
         """
         super(Parser, self).__init__()
+        self.input_raw = input_raw
         self.input_scan = input_scan 
         self.index = 0
-        self.word = "" #FIXME: maybe not necessary
+        self.word = "" 
 
         self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
                             "RIGHTHANDSIDE", "SYMBOLLIST", start = 6)
-        self.exepcted_state = -1
+        self._expected_state = []
+        self.syntax_tree = None
         self.output = []
 
     @simplelog.dump_func()
@@ -294,7 +306,8 @@ class Parser(CompilerBase):
         """
         word = self.input_scan[self.index]
         self.index += 1
-        return word
+        self.word = word
+        return self.word #FIXME: this is only for debugging
 
     @simplelog.dump_func()
     def is_grammar(self):
@@ -302,125 +315,146 @@ class Parser(CompilerBase):
         Checks if word is goal
         Grammer -> ProductionList
         """
-        self.exepcted_state = self._state.GRAMMAR #log current expected state 
-        word = self.next_word()
-        if (self.is_production_list(word)):
-            word = next_word()
-            if(word["type"] == self.TOKENS.EOF):
+        self._expected_state.append(self._state.GRAMMAR) #log current expected state 
+        self.next_word()
+        if (self.is_production_list()):
+            if(self.word["type"] == self.TOKENS.EOF):
+                self._expected_state.pop()
                 return True
         self.fail()
 
     @simplelog.dump_func()
-    def is_production_list(self, word):
+    def is_production_list(self):
         """
         Check if a word is a production list
         ProductionList -> ProductionSet SEMICOLON ProductionList'
         """
-        import pdb
-        pdb.set_trace()
-        self.exepcted_state = self._state.PRODUCTIONLIST
-        if self.is_production_set(word):
-            word = self.next_word()
-            if (word['type'] == self.TOKENS.SEMICOLON):
+        self._expected_state.append(self._state.PRODUCTIONLIST)
+        if self.is_production_set():
+            if self.is_production_list_p():
+                self._expected_state.pop()
                 return True
-        elif (self.is_production_list(word)):
-            #TODO: write this correctly 
-            return True
-        else:
-            self.fail()
-            return False
+        self.fail()
 
     @simplelog.dump_func()
-    def is_production_list_p(self, word):
+    def is_production_list_p(self):
         """
         ProductionList' -> ProductionSet SEMICOLON ProductionSet'
                         | EPSILON
         """
-        if (word["type"] == self.TOKENS.EPSILON):
-            return True 
-        if self.is_production_set(word):
-            word = self.next_word()
-            if (word['type'] == self.TOKENS.SEMICOLON):
-                word = self.next_word()
-                if (is_production_list_p(word)):
-                    return True
-        self.fail()
-
-    @simplelog.dump_func()
-    def is_production_set(self, word):
-        """
-        Check if word is a production set
-        ProductionSet -> SYMBOL DERIVES RightHandSide PS'
-        """
         import pdb
         pdb.set_trace()
-        if (word["type"] == self.TOKENS.SYMBOL):
-            word = self.next_word()
-            if (word["type"] == self.TOKENS.DERIVES):
-                word = self.next_word()
-                if (self.is_right_hand_side(word)):
-                    word = self.next_word()
-                    if (self.is_production_set_p(word)):
+        if (self.is_epsilon()):
+            return True
+        else:
+            #we reached end of a productionlist; move forward to next set
+            self.next_word()  
+            if self.is_production_set():
+                import pdb
+                pdb.set_trace()
+                if (self.word['type'] == self.TOKENS.SEMICOLON):
+                    self.next_word()
+                    if (self.is_production_list_p()):
                         return True
         self.fail()
 
     @simplelog.dump_func()
-    def is_production_set_p(self, word):
+    def is_production_set(self):
         """
-        ProductionSet' -> SYMBOL DERIVES RightHandSide PS'
+        Check if word is a production set
+        ProductionSet -> SYMBOL DERIVES RightHandSide PS'
+        """
+        self._expected_state.append(self._state.PRODUCTIONSET)
+        if (self.word["type"] == self.TOKENS.SYMBOL):
+            self.next_word()
+            if (self.word["type"] == self.TOKENS.DERIVES):
+                self.next_word()
+                if (self.is_right_hand_side()):
+                    if (self.is_production_set_p()):
+                        self._expected_state.pop()
+                        return True
+        self.fail()
+
+    @simplelog.dump_func()
+    def is_production_set_p(self):
+        """
+        ProductionSet' -> ALSODERIVES PS'
                         | EPSILON
         """
-        if (word["type"] == self.TOKENS.EPSILON):
-            return True 
-        elif(word["type"] == self.TOKENS.SYMBOL):
-            word = self.next_word()
-            if (word["type"] == self.TOKENS.DERIVES):
-                word = self.next_word()
-                if (self.is_right_hand_side(word)):
+        if(self.is_epsilon()):
+            return True
+        elif (self.word["type"] == self.TOKENS.ALSODERIVES):
+            self.next_word()
+            if (self.is_right_hand_side()):
+                if(self.is_production_set_p()):
                     return True
         self.fail()
 
     @simplelog.dump_func()
-    def is_right_hand_side(self, word):
+    def is_right_hand_side(self):
         """
         Check if word is a valid right hand side
         RH -> Symbolist 
             | Epsilon
         """
-        if (self.is_symbol_list(word)):
+        self._expected_state.append(self._state.RIGHTHANDSIDE)
+        if (self.is_symbol_list()):
+            self._expected_state.pop()
             return True
-        elif (word["type"] == self.TOKENS.EPSILON):
+        elif (self.word["type"] == self.TOKENS.EPSILON):
+            self._expected_state.pop()
             return True
         self.fail()
 
     
     @simplelog.dump_func()
-    def is_symbol_list(self, word):
+    def is_symbol_list(self):
         """
         Check if word is valid symbolist
         SL ->  SYMBOL SL'
         """
-        if (word["type"] == self.TOKENS.SYMBOL):
-            word = self.next_word()
-            if (self.is_symbol_list_p(word)):
+        self._expected_state.append(self._state.SYMBOLLIST)
+        if (self.word["type"] == self.TOKENS.SYMBOL):
+            self.next_word()
+            if (self.is_symbol_list_p()):
+                self._expected_state.pop()
                 return True
         self.fail()
     
     @simplelog.dump_func()
-    def is_symbol_list_p(self, word):
+    def is_symbol_list_p(self):
         """
         Perform followng Check:
         SL' -> SYMBOL SL'
             | EPSILON
         """
-        if (word["type"] == self.TOKENS.EPSILON):
-            return True 
-        elif (word["type"] == self.TOKENS.SYMBOL):
-            word = self.next_word()
-            if (is_symbol_list_p(word)):
+        if self.is_epsilon():
+            return True
+        elif (self.word["type"] == self.TOKENS.SYMBOL):
+            self.next_word()
+            if (self.is_symbol_list_p()):
                 return True
         self.fail()
 
+    def is_epsilon(self):
+        """
+        Check if word is epsilon
+        """
+        if (self.word["type"] == self.TOKENS.EPSILON):
+            return True
+        elif (self.expected_state == self._state.SYMBOLLIST):
+            if ( 
+                (self.word["type"] == self.TOKENS.SEMICOLON) | 
+                (self.word["type"] == self.TOKENS.ALSODERIVES)
+               ):
+                return True
+        elif (self.expected_state == self._state.PRODUCTIONSET):
+            if (self.word["type"] == self.TOKENS.SEMICOLON):
+                return True
+        elif (self.expected_state == self._state.PRODUCTIONLIST):
+            if (self.word["type"] == self.TOKENS.EOF):
+                return True
+        return False
 
     @simplelog.dump_func()
     def fail(self):
@@ -431,15 +465,17 @@ class Parser(CompilerBase):
         pdb.set_trace()
         print ("failure")
         error_msg = ""
-        word = self.input_scan[self.index]
+        word = self.word
         error_msg += "error!\n"
-        error_msg += "expected: " + str(self.exepcted_state) + "\n"
+        error_msg += "expected: " + str(self.expected_state) + "\n"
         error_msg += "got: " + str(word["type"]) + "\n"
         error_msg += "line number: " + str(word["lino"]) + "\n"
         error_msg += "word: " + word['word'] + "\n"
         print (error_msg) 
+        print (self.input_raw)
         from pprint import pprint
         pprint(self.input_scan)
+        pprint(self.input_raw)
         #TODO: attempt recovery
         exit()
 
@@ -452,6 +488,19 @@ class Parser(CompilerBase):
             return True
         else:
             self.fail()
+
+    @property
+    def expected_state(self):
+        """
+        The expected state of the program
+        """
+        #TODO: account for case of empty list
+        try:
+            return self._expected_state[-1]
+        except IndexError:
+            return []
+
+
                 
 
 
@@ -462,8 +511,8 @@ if __name__ == "__main__":
     sl.debug("new trial")
     s = Scanner("test/RRSheepNoise.txt")
     r = s.execute()
-    p = Parser(r)
-    #r_p = p.execute()
+    p = Parser(r, s.bnf_file)
+    r_p = p.execute()
 
     
 
