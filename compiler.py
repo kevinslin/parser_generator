@@ -277,8 +277,8 @@ class Scanner(CompilerBase):
                     word = self.bnf_file[self.cursor:self.bnf_file.find(" ")]
                     print (word + " is invalid")
                     raise Exception("Got an invalid character")
-                self.output.append({"word":word, "type":token_type, "lino": lino})
-        self.output.append({"word":"", "type":self.TOKENS.EOF, "lino": lino})
+                self.output.append({"value":word, "type":token_type, "lino": lino})
+        self.output.append({"value":"", "type":self.TOKENS.EOF, "lino": lino})
         return self.output
 
 class Parser(CompilerBase):
@@ -296,7 +296,7 @@ class Parser(CompilerBase):
         self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
                             "RIGHTHANDSIDE", "SYMBOLLIST", start = 6)
         self._expected_state = []
-        self.syntax_tree = None
+        self.ast = collections.deque() #abstract syntax tree
         self.output = []
 
     @simplelog.dump_func()
@@ -353,6 +353,9 @@ class Parser(CompilerBase):
                 import pdb
                 pdb.set_trace()
                 if (self.word['type'] == self.TOKENS.SEMICOLON):
+                    node = tree.Node(";", self.TOKENS.SEMICOLON)
+                    for child in self.ast:
+                        node.add_child(child)
                     self.next_word()
                     if (self.is_production_list_p()):
                         return True
@@ -369,6 +372,7 @@ class Parser(CompilerBase):
             self.next_word()
             if (self.word["type"] == self.TOKENS.DERIVES):
                 self.next_word()
+                node = tree.Node(":", self.TOKENS.DERIVES)
                 if (self.is_right_hand_side()):
                     if (self.is_production_set_p()):
                         self._expected_state.pop()

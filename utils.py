@@ -28,6 +28,15 @@ class Enum(dict):
         """
         if self.__contains__(name):
             return self.__getitem__(name)
+
+    def get_key_for_value(self, value):
+        """
+        Get key for value
+        >>> t = Enum("A", "B", "C")
+        >>> t.get_key_for_value(1)
+        'B'
+        """
+        return filter(lambda x: x[1] == value, self.items())[0][0]
     
 def bfs(g, startnode, **kwargs):
     """

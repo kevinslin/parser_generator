@@ -52,18 +52,18 @@ class TestScanner(unittest.TestCase):
     def test_scanner(self):
         self.compiler._get_input("test/RRSheepNoise.txt")
         r = self.compiler.execute()
-        expected = [{'lino': 1, 'type': 4, 'word': 'Goal'}, 
-                    {'lino': 1, 'type': 1, 'word': ':'}, 
-                    {'lino': 1, 'type': 4, 'word': 'SheepNoise'}, 
-                    {'lino': 2, 'type': 0, 'word': ';'}, 
-                    {'lino': 3, 'type': 4, 'word': 'SheepNoise'}, 
-                    {'lino': 3, 'type': 1, 'word': ':'}, 
-                    {'lino': 3, 'type': 4, 'word': 'baa'}, 
-                    {'lino': 3, 'type': 4, 'word': 'SheepNoise'}, 
-                    {'lino': 4, 'type': 2, 'word': '|'}, 
-                    {'lino': 4, 'type': 4, 'word': 'baa'}, 
-                    {'lino': 5, 'type': 0, 'word': ';'}, 
-                    {'lino': 6, 'type': 5, 'word': ''}]
+        expected = [{'lino': 1, 'type': 4, 'value': 'Goal'}, 
+                    {'lino': 1, 'type': 1, 'value': ':'}, 
+                    {'lino': 1, 'type': 4, 'value': 'SheepNoise'}, 
+                    {'lino': 2, 'type': 0, 'value': ';'}, 
+                    {'lino': 3, 'type': 4, 'value': 'SheepNoise'}, 
+                    {'lino': 3, 'type': 1, 'value': ':'}, 
+                    {'lino': 3, 'type': 4, 'value': 'baa'}, 
+                    {'lino': 3, 'type': 4, 'value': 'SheepNoise'}, 
+                    {'lino': 4, 'type': 2, 'value': '|'}, 
+                    {'lino': 4, 'type': 4, 'value': 'baa'}, 
+                    {'lino': 5, 'type': 0, 'value': ';'}, 
+                    {'lino': 6, 'type': 5, 'value': ''}]
         self.assertTrue(r == expected)
 
     def test_semicolon(self):
@@ -71,35 +71,38 @@ class TestScanner(unittest.TestCase):
         self.compiler._initialize_dfa()
         sl.info(self.compiler.DFA_TABLE)
         r = self.compiler.execute()
-        self.assertTrue(r == [{'lino': 1, 'type': 0, 'word': ';'}, 
-                                {'lino': 2, 'type': 5, 'word': ''}])
+        self.assertTrue(r == [{'lino': 1, 'type': 0, 'value': ';'}, 
+                                {'lino': 2, 'type': 5, 'value': ''}])
 
     def test_also_derives(self):
         self.compiler._get_input("test/derives.txt")
         self.compiler._initialize_dfa()
         sl.info(self.compiler.DFA_TABLE)
         r = self.compiler.execute()
-        self.assertTrue(r == [{'lino': 1, 'type': 2, 'word': '|'}, 
-                                {'lino': 2, 'type': 5, 'word': ''}])
+        self.assertTrue(r == [{'lino': 1, 'type': 2, 'value': '|'}, 
+                                {'lino': 2, 'type': 5, 'value': ''}])
 
     def test_symbol(self):
         self.compiler._get_input("test/symbol.txt")
         self.compiler._initialize_dfa()
         sl.info(self.compiler.DFA_TABLE)
         r = self.compiler.execute()
-        self.assertTrue(r == [{'lino': 1, 'type': 4, 'word': 'foo'}, 
-                                {'lino': 2, 'type': 5, 'word': ''}])
+        sl.info(r)
+        self.assertTrue(r == [{'lino': 1, 'type': 4, 'value': 'foo'}, 
+                                {'lino': 2, 'type': 5, 'value': ''}])
 
     def tearDown(self):
         return
 
-@unittest.skip("skipping")
 class TestParser(unittest.TestCase):
     def setUp(self):
-        self.scanner = compiler.Scanner("../RRSheepNoise.txt")
-        self.parser = compiler.Parser(self.scanner.execute())
+        self.scanner = compiler.Scanner("test/RRSheepNoise.txt")
+        self.parser = compiler.Parser(self.scanner.execute(), 
+                                        self.scanner.bnf_file)
 
     def test_parser(self):
+        r = self.parser.execute()
+        self.assertTrue(r == True)
         return 
 
 
