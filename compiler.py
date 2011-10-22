@@ -408,13 +408,13 @@ class Parser(CompilerBase):
         RH -> Symbolist 
             | Epsilon
         """
+        nodes = []
         self._expected_state.append(self._state.RIGHTHANDSIDE)
-        if (self.is_symbol_list()):
+        valid, result = self.is_symbol_list()
+        if (valid) or (self.word["type"] == self.TOKENS.EPSILON):
+            nodes.append(result)
             self._expected_state.pop()
-            return True
-        elif (self.word["type"] == self.TOKENS.EPSILON):
-            self._expected_state.pop()
-            return True
+            return (True, nodes)
         self.fail()
 
     
@@ -424,16 +424,20 @@ class Parser(CompilerBase):
         Check if word is valid symbolist
         SL ->  SYMBOL SL'
         """
+        nodes = []
         self._expected_state.append(self._state.SYMBOLLIST)
         if (self.word["type"] == self.TOKENS.SYMBOL):
             node = self.last_node
             node.add_child(tree.Node(self.word["value"], 
                                     self.word["type"]))     #: -> symbol, symbolist
-            self.last_node = node
+            nodes.append(node)
+
             self.next_word()
-            if (self.is_symbol_list_p()):
+            valid, result = self.is_symbol_list_p()
+            if (valid):
+                nodes.append(result)
                 self._expected_state.pop()
-                return True
+                return (True, noes)
         self.fail()
     
     @simplelog.dump_func()
@@ -443,16 +447,21 @@ class Parser(CompilerBase):
         SL' -> SYMBOL SL'
             | EPSILON
         """
+        nodes = []
         if self.is_epsilon():
             return True
         elif (self.word["type"] == self.TOKENS.SYMBOL):
             self.next_word()
+
             node = self.last_node
             node.add_child(tree.Node(self.word["value"], 
                                     self.word["type"]))
-            self.last_node = node
-            if (self.is_symbol_list_p()):
-                return True
+            nodes.append(node)
+
+            valid, result = self.is_symbol_list_p()
+            if (valid):
+                nodes.append(result)
+                return (True, nodes)
         self.fail()
 
     def is_epsilon(self):
