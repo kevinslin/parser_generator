@@ -297,6 +297,7 @@ class Parser(CompilerBase):
                             "RIGHTHANDSIDE", "SYMBOLLIST", start = 6)
         self._expected_state = []
         self.ast = collections.deque() #abstract syntax tree
+        self.last_node = None
         self.output = []
 
     @simplelog.dump_func()
@@ -315,6 +316,8 @@ class Parser(CompilerBase):
         Checks if word is goal
         Grammer -> ProductionList
         """
+        import pdb
+        pdb.set_trace()
         self._expected_state.append(self._state.GRAMMAR) #log current expected state 
         self.next_word()
         if (self.is_production_list()):
@@ -331,6 +334,8 @@ class Parser(CompilerBase):
         """
         self._expected_state.append(self._state.PRODUCTIONLIST)
         if self.is_production_set():
+            import pdb
+            pdb.set_trace()
             if self.is_production_list_p():
                 self._expected_state.pop()
                 return True
@@ -342,20 +347,17 @@ class Parser(CompilerBase):
         ProductionList' -> ProductionSet SEMICOLON ProductionSet'
                         | EPSILON
         """
-        import pdb
-        pdb.set_trace()
         if (self.is_epsilon()):
             return True
         else:
             #we reached end of a productionlist; move forward to next set
             self.next_word()  
             if self.is_production_set():
-                import pdb
-                pdb.set_trace()
+                #TODO: fails on recursion
                 if (self.word['type'] == self.TOKENS.SEMICOLON):
                     node = tree.Node(";", self.TOKENS.SEMICOLON)
-                    for child in self.ast:
-                        node.add_child(child)
+                    node.add_child(self.last_node)
+                    self.last_node = node
                     self.next_word()
                     if (self.is_production_list_p()):
                         return True
@@ -369,10 +371,15 @@ class Parser(CompilerBase):
         """
         self._expected_state.append(self._state.PRODUCTIONSET)
         if (self.word["type"] == self.TOKENS.SYMBOL):
+            child = tree.Node(self.word["value"], self.word["type"])
             self.next_word()
             if (self.word["type"] == self.TOKENS.DERIVES):
                 self.next_word()
-                node = tree.Node(":", self.TOKENS.DERIVES)
+
+                node = tree.Node(":", self.TOKENS.DERIVES) # : -> symbol, RHS, PS' 
+                node.add_child(child)
+                self.last_node = node
+                self.ast.append(node) #FIXME: no need?
                 if (self.is_right_hand_side()):
                     if (self.is_production_set_p()):
                         self._expected_state.pop()
@@ -419,6 +426,10 @@ class Parser(CompilerBase):
         """
         self._expected_state.append(self._state.SYMBOLLIST)
         if (self.word["type"] == self.TOKENS.SYMBOL):
+            node = self.last_node
+            node.add_child(tree.Node(self.word["value"], 
+                                    self.word["type"]))     #: -> symbol, symbolist
+            self.last_node = node
             self.next_word()
             if (self.is_symbol_list_p()):
                 self._expected_state.pop()
@@ -436,6 +447,10 @@ class Parser(CompilerBase):
             return True
         elif (self.word["type"] == self.TOKENS.SYMBOL):
             self.next_word()
+            node = self.last_node
+            node.add_child(tree.Node(self.word["value"], 
+                                    self.word["type"]))
+            self.last_node = node
             if (self.is_symbol_list_p()):
                 return True
         self.fail()
