@@ -294,10 +294,10 @@ class Parser(CompilerBase):
         self.word = "" 
 
         self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
-                            "RIGHTHANDSIDE", "SYMBOLLIST", start = 6)
+                            "RIGHTHANDSIDE", "SYMBOLLIST", "SYMBOLLIST_P",
+                            "PRODUCTIONSET_P", "PRODUCTIONLIST_P", start = 6)
+        self._type = Enum("NT", "T", "UNKNOWN")
         self._expected_state = []
-        self.ast = collections.deque() #abstract syntax tree
-        self.last_node = None
         self.output = []
 
     @simplelog.dump_func()
@@ -320,11 +320,13 @@ class Parser(CompilerBase):
         pdb.set_trace()
         self._expected_state.append(self._state.GRAMMAR) #log current expected state 
         self.next_word()
-        if (self.is_production_list()):
+        valid, result= self.is_production_list()
+        if (valid):
+            self.ast = result 
             if(self.word["type"] == self.TOKENS.EOF):
                 self._expected_state.pop()
                 return True
-        self.fail()
+        return self.fail()
 
     @simplelog.dump_func()
     def is_production_list(self):
@@ -332,14 +334,24 @@ class Parser(CompilerBase):
         Check if a word is a production list
         ProductionList -> ProductionSet SEMICOLON ProductionList'
         """
+        import pdb
+        pdb.set_trace()
+        pl_node = tree.Node(self._state.PRODUCTIONLIST, self._type.NT)
         self._expected_state.append(self._state.PRODUCTIONLIST)
-        if self.is_production_set():
-            import pdb
-            pdb.set_trace()
-            if self.is_production_list_p():
-                self._expected_state.pop()
-                return True
-        self.fail()
+        valid, result = self.is_production_set()
+        if (valid):
+            pl_node.add_child(result)
+            if (self.word["type"] == self.TOKENS.SEMICOLON):
+                pl_node.add_child(tree.Node(self.TOKENS.SEMICOLON, self._type.T))
+                self.next_word()
+                valid, result = self.is_production_list_p()
+                if (valid):
+                    import pdb
+                    pdb.set_trace()
+                    pl_node.add_child(result)
+                    self._expected_state.pop()
+                    return (True, pl_node)
+        return self.fail()
 
     @simplelog.dump_func()
     def is_production_list_p(self):
@@ -347,21 +359,25 @@ class Parser(CompilerBase):
         ProductionList' -> ProductionSet SEMICOLON ProductionSet'
                         | EPSILON
         """
+        import pdb
+        pdb.set_trace()
+        plp_node = tree.Node(self._state.PRODUCTIONLIST_P, self._type.NT)
         if (self.is_epsilon()):
-            return True
+            return (True, plp_node)
         else:
-            #we reached end of a productionlist; move forward to next set
-            self.next_word()  
-            if self.is_production_set():
-                #TODO: fails on recursion
+            valid, result = self.is_production_set()
+            if (valid):
+                plp_node.add_child(result)
+                import pdb
+                pdb.set_trace()
                 if (self.word['type'] == self.TOKENS.SEMICOLON):
-                    node = tree.Node(";", self.TOKENS.SEMICOLON)
-                    node.add_child(self.last_node)
-                    self.last_node = node
+                    plp_node = tree.Node(self.TOKENS.SEMICOLON, self._type.T)
                     self.next_word()
-                    if (self.is_production_list_p()):
-                        return True
-        self.fail()
+                    valid, result = self.is_production_list_p()
+                    if (valid):
+                        plp_node.add_child(result)
+                        return (True, plp_node)
+        return self.fail()
 
     @simplelog.dump_func()
     def is_production_set(self):
@@ -369,22 +385,25 @@ class Parser(CompilerBase):
         Check if word is a production set
         ProductionSet -> SYMBOL DERIVES RightHandSide PS'
         """
+        import pdb
+        pdb.set_trace()
+        ps_node = tree.Node(self._state.PRODUCTIONSET, self._type.NT)
         self._expected_state.append(self._state.PRODUCTIONSET)
         if (self.word["type"] == self.TOKENS.SYMBOL):
-            child = tree.Node(self.word["value"], self.word["type"])
+            ps_node.add_child(tree.Node(self.word["value"],self._type.NT)) 
             self.next_word()
             if (self.word["type"] == self.TOKENS.DERIVES):
+                ps_node.add_child(tree.Node(self.TOKENS.DERIVES, self._type.NT))
                 self.next_word()
-
-                node = tree.Node(":", self.TOKENS.DERIVES) # : -> symbol, RHS, PS' 
-                node.add_child(child)
-                self.last_node = node
-                self.ast.append(node) #FIXME: no need?
-                if (self.is_right_hand_side()):
-                    if (self.is_production_set_p()):
+                valid, result = self.is_right_hand_side()
+                if (valid):
+                    ps_node.add_child(result)
+                    valid, result = self.is_production_set_p()
+                    if (valid):
+                        ps_node.add_child(result)
                         self._expected_state.pop()
-                        return True
-        self.fail()
+                        return (True, ps_node)
+        return self.fail()
 
     @simplelog.dump_func()
     def is_production_set_p(self):
@@ -392,14 +411,24 @@ class Parser(CompilerBase):
         ProductionSet' -> ALSODERIVES PS'
                         | EPSILON
         """
+        import pdb
+        pdb.set_trace()
+        psp_node = tree.Node(self._state.PRODUCTIONSET_P, self._type.NT)
         if(self.is_epsilon()):
-            return True
+            return (True, psp_node)
         elif (self.word["type"] == self.TOKENS.ALSODERIVES):
+            psp_node.add_child(tree.Node(self.TOKENS.ALSODERIVES, self._type.T))
             self.next_word()
-            if (self.is_right_hand_side()):
-                if(self.is_production_set_p()):
-                    return True
-        self.fail()
+            valid, result = self.is_right_hand_side()
+            if (valid):
+                psp_node.add_child(result)
+                valid, result = self.is_production_set_p()
+                if(valid):
+                    import pdb
+                    pdb.set_trace()
+                    psp_node.add_child(result)
+                    return (True, psp_node)
+        return self.fail()
 
     @simplelog.dump_func()
     def is_right_hand_side(self):
@@ -408,14 +437,16 @@ class Parser(CompilerBase):
         RH -> Symbolist 
             | Epsilon
         """
-        nodes = []
+        import pdb
+        pdb.set_trace()
+        rh_node = tree.Node(self._state.RIGHTHANDSIDE, self._type.NT)
         self._expected_state.append(self._state.RIGHTHANDSIDE)
         valid, result = self.is_symbol_list()
         if (valid) or (self.word["type"] == self.TOKENS.EPSILON):
-            nodes.append(result)
+            rh_node.add_child(result)
             self._expected_state.pop()
-            return (True, nodes)
-        self.fail()
+            return (True, rh_node)
+        return self.fail()
 
     
     @simplelog.dump_func()
@@ -424,21 +455,17 @@ class Parser(CompilerBase):
         Check if word is valid symbolist
         SL ->  SYMBOL SL'
         """
-        nodes = []
+        sl_node = tree.Node(self._state.SYMBOLLIST, "NT")
         self._expected_state.append(self._state.SYMBOLLIST)
         if (self.word["type"] == self.TOKENS.SYMBOL):
-            node = self.last_node
-            node.add_child(tree.Node(self.word["value"], 
-                                    self.word["type"]))     #: -> symbol, symbolist
-            nodes.append(node)
-
+            sl_node.add_child(tree.Node(self.word["value"], self._type.T))
             self.next_word()
             valid, result = self.is_symbol_list_p()
             if (valid):
-                nodes.append(result)
+                sl_node.add_child(result)
                 self._expected_state.pop()
-                return (True, noes)
-        self.fail()
+                return (True, sl_node)
+        return self.fail()
     
     @simplelog.dump_func()
     def is_symbol_list_p(self):
@@ -447,22 +474,21 @@ class Parser(CompilerBase):
         SL' -> SYMBOL SL'
             | EPSILON
         """
-        nodes = []
+        import pdb
+        pdb.set_trace()
+        slp_node = tree.Node(self._state.SYMBOLLIST_P, self._type.NT)
         if self.is_epsilon():
-            return True
+            return (True, slp_node)
         elif (self.word["type"] == self.TOKENS.SYMBOL):
             self.next_word()
 
-            node = self.last_node
-            node.add_child(tree.Node(self.word["value"], 
-                                    self.word["type"]))
-            nodes.append(node)
-
+            slp_node.add_child(tree.Node(self.word["value"], 
+                                        self._type.UNKNOWN)) 
             valid, result = self.is_symbol_list_p()
             if (valid):
-                nodes.append(result)
-                return (True, nodes)
-        self.fail()
+                slp_node.add_child(result)
+                return (True, slp_node)
+        return self.fail()
 
     def is_epsilon(self):
         """
@@ -495,17 +521,18 @@ class Parser(CompilerBase):
         error_msg = ""
         word = self.word
         error_msg += "error!\n"
-        error_msg += "expected: " + str(self.expected_state) + "\n"
+        error_msg += "expected: " + str(self._state.get_key_for_value(self.expected_state)) +\
+                     "\n"
         error_msg += "got: " + str(word["type"]) + "\n"
         error_msg += "line number: " + str(word["lino"]) + "\n"
-        error_msg += "word: " + word['word'] + "\n"
+        error_msg += "word: " + word['value'] + "\n"
         print (error_msg) 
         print (self.input_raw)
         from pprint import pprint
         pprint(self.input_scan)
         pprint(self.input_raw)
         #TODO: attempt recovery
-        exit()
+        return False
 
     @simplelog.dump_func()
     def execute(self):
@@ -515,7 +542,7 @@ class Parser(CompilerBase):
         if self.is_grammar():
             return True
         else:
-            self.fail()
+            return self.fail()
 
     @property
     def expected_state(self):
