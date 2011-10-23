@@ -11,35 +11,14 @@ class CompilerBase(object):
     Holds the regular expressions
     """
     def __init__(self):
-        self.RE = []
         self.DFA = []
         self.DFA_TABLE = [] #tuple object (token type, token dfa) 
+        self.debug = False
+        if globals().has_key("DEBUG"):
+            self.debug = globals()["DEBUG"]
         self.TOKENS = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
-                            "EPSILON", "SYMBOL", "EOF")
-
-    def _initialize_re(self, *args, **kwargs):
-        """
-        Initialize regular expressions
-        """
-        #TODO: remove this 
-        self.RE.append({'name' : 'RE_SEMICOLON',
-                        'pattern' : re.compile(";"),
-                        'token' : 0})
-        self.RE.append({'name' : 'RE_DERIVES',
-                        'token' : 1,
-                        'pattern' : re.compile(":")})
-        self.RE.append({'name':'RE_ALSODERIVES',
-                        'token' : 2, 
-                        'pattern' : re.compile("\|")})
-        self.RE.append({'name':'RE_EPSILON',
-                        'pattern' : re.compile("EPSILON|epsilon|Epsilon"),
-                        'token' : 3})
-        self.RE.append({'name' : 'RE_SYMBOL',
-                        'pattern' : re.compile("[a-zA-Z0-9]+"),
-                        'token' : 4})
-        self.RE.append({'name':'RE_EOF',
-                        'pattern' : re.compile(""),
-                        'token' : 5})
+                            "EPSILON", "SYMBOL", "EOF",
+                            verbose = self.debug)
 
     @simplelog.dump_func(func_name_only = True)
     def _initialize_dfa(self, *args, **kwargs):
@@ -140,7 +119,6 @@ class CompilerBase(object):
         """
         Initialize DFA tables
         """
-        self._initialize_re()
         self._initialize_dfa()
 
 
@@ -170,23 +148,6 @@ class Scanner(CompilerBase):
         with open(filename, "rb") as fh:
             self.bnf_file = fh.read()
         self.file_length = len(self.bnf_file)
-
-    def _split_words(self, line):
-        """
-        Split input into words
-        @param:
-        line - given line of text
-        """
-        words = re.split("\s+", line)
-        return words
-    
-    def get_token(self, word):
-        """
-        Given a word, get the token for it
-        """
-        for re in self.RE:
-            if re['pattern'].match(word):
-                return re['token']
 
     def next_char(self):
         """
@@ -226,20 +187,20 @@ class Scanner(CompilerBase):
         for table_classifier, table_transition, table_token_type, state_legal in \
                 self.DFA_TABLE:
             
-            state = 0
+            state = 0 #start state
             lexeme = ""
             stack = collections.deque()
             stack.appendleft(_STATE.BAD)
 
-            while (state != _STATE.ERROR):
+            while (state != _STATE.ERROR) and (self.cursor < self.file_length):
                 char_curr = self.next_char()
                 lexeme += char_curr
                 if state in state_legal:
                     stack.clear()
                 stack.appendleft(state)
                 try:
-                    cat = table_classifier[char_curr]
-                    state = table_transition[cat][state]
+                    cat = table_classifier[char_curr] #look up category
+                    state = table_transition[cat][state] #look up if we reached a valid state
                 except KeyError:
                     state = _STATE.ERROR
             
@@ -251,8 +212,12 @@ class Scanner(CompilerBase):
 
                 if (lexeme == ""):
                     break
-                if state in state_legal:
+            if state in state_legal:
+                #if state is not here, we got an invalid entry 
+                try:
                     return (lexeme, table_token_type[state])
+                except KeyError:
+                    continue
                 #TODO: too much roll back error?
         return (False, False)
     
@@ -270,12 +235,16 @@ class Scanner(CompilerBase):
             elif (char == "\n"):
                 lino += 1
                 self.next_char()
+            elif (char == "\t"):
+                self.next_char()
             else:
                 word, token_type = self.next_word()
                 if word is False:
                     #TODO: make a better exception 
                     word = self.bnf_file[self.cursor:self.bnf_file.find(" ")]
                     print (word + " is invalid")
+                    print ("cursor position: " + str(self.cursor))
+                    print ("lino: " + str(lino))
                     raise Exception("Got an invalid character")
                 self.output.append({"value":word, "type":token_type, "lino": lino})
         self.output.append({"value":"", "type":self.TOKENS.EOF, "lino": lino})
@@ -295,8 +264,9 @@ class Parser(CompilerBase):
 
         self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
                             "RIGHTHANDSIDE", "SYMBOLLIST", "SYMBOLLIST_P",
-                            "PRODUCTIONSET_P", "PRODUCTIONLIST_P", start = 6)
-        self._type = Enum("NT", "T", "UNKNOWN")
+                            "PRODUCTIONSET_P", "PRODUCTIONLIST_P", start = 6, 
+                            verbose = self.debug)
+        self._type = Enum("NT", "T", "UNKNOWN", verbose = self.debug)
         self._expected_state = []
         self.output = []
 
@@ -316,8 +286,6 @@ class Parser(CompilerBase):
         Checks if word is goal
         Grammer -> ProductionList
         """
-        import pdb
-        pdb.set_trace()
         self._expected_state.append(self._state.GRAMMAR) #log current expected state 
         self.next_word()
         valid, result= self.is_production_list()
@@ -334,10 +302,9 @@ class Parser(CompilerBase):
         Check if a word is a production list
         ProductionList -> ProductionSet SEMICOLON ProductionList'
         """
-        import pdb
-        pdb.set_trace()
         pl_node = tree.Node(self._state.PRODUCTIONLIST, self._type.NT)
         self._expected_state.append(self._state.PRODUCTIONLIST)
+
         valid, result = self.is_production_set()
         if (valid):
             pl_node.add_child(result)
@@ -346,8 +313,6 @@ class Parser(CompilerBase):
                 self.next_word()
                 valid, result = self.is_production_list_p()
                 if (valid):
-                    import pdb
-                    pdb.set_trace()
                     pl_node.add_child(result)
                     self._expected_state.pop()
                     return (True, pl_node)
@@ -359,8 +324,6 @@ class Parser(CompilerBase):
         ProductionList' -> ProductionSet SEMICOLON ProductionSet'
                         | EPSILON
         """
-        import pdb
-        pdb.set_trace()
         plp_node = tree.Node(self._state.PRODUCTIONLIST_P, self._type.NT)
         if (self.is_epsilon()):
             return (True, plp_node)
@@ -368,10 +331,8 @@ class Parser(CompilerBase):
             valid, result = self.is_production_set()
             if (valid):
                 plp_node.add_child(result)
-                import pdb
-                pdb.set_trace()
                 if (self.word['type'] == self.TOKENS.SEMICOLON):
-                    plp_node = tree.Node(self.TOKENS.SEMICOLON, self._type.T)
+                    plp_node.add_child(tree.Node(self.TOKENS.SEMICOLON, self._type.T))
                     self.next_word()
                     valid, result = self.is_production_list_p()
                     if (valid):
@@ -385,10 +346,9 @@ class Parser(CompilerBase):
         Check if word is a production set
         ProductionSet -> SYMBOL DERIVES RightHandSide PS'
         """
-        import pdb
-        pdb.set_trace()
         ps_node = tree.Node(self._state.PRODUCTIONSET, self._type.NT)
         self._expected_state.append(self._state.PRODUCTIONSET)
+
         if (self.word["type"] == self.TOKENS.SYMBOL):
             ps_node.add_child(tree.Node(self.word["value"],self._type.NT)) 
             self.next_word()
@@ -411,10 +371,11 @@ class Parser(CompilerBase):
         ProductionSet' -> ALSODERIVES PS'
                         | EPSILON
         """
-        import pdb
-        pdb.set_trace()
         psp_node = tree.Node(self._state.PRODUCTIONSET_P, self._type.NT)
+        self._expected_state.append(self._state.PRODUCTIONSET_P)
+
         if(self.is_epsilon()):
+            self._expected_state.pop()
             return (True, psp_node)
         elif (self.word["type"] == self.TOKENS.ALSODERIVES):
             psp_node.add_child(tree.Node(self.TOKENS.ALSODERIVES, self._type.T))
@@ -424,9 +385,8 @@ class Parser(CompilerBase):
                 psp_node.add_child(result)
                 valid, result = self.is_production_set_p()
                 if(valid):
-                    import pdb
-                    pdb.set_trace()
                     psp_node.add_child(result)
+                    self._expected_state.pop()
                     return (True, psp_node)
         return self.fail()
 
@@ -437,10 +397,13 @@ class Parser(CompilerBase):
         RH -> Symbolist 
             | Epsilon
         """
-        import pdb
-        pdb.set_trace()
         rh_node = tree.Node(self._state.RIGHTHANDSIDE, self._type.NT)
         self._expected_state.append(self._state.RIGHTHANDSIDE)
+
+        if(self.is_epsilon()):
+            self.next_word() #epsilon consumes input in right hand side
+            self._expected_state.pop()
+            return (True, rh_node)
         valid, result = self.is_symbol_list()
         if (valid) or (self.word["type"] == self.TOKENS.EPSILON):
             rh_node.add_child(result)
@@ -455,10 +418,10 @@ class Parser(CompilerBase):
         Check if word is valid symbolist
         SL ->  SYMBOL SL'
         """
-        sl_node = tree.Node(self._state.SYMBOLLIST, "NT")
+        sl_node = tree.Node(self._state.SYMBOLLIST, self._type.NT)
         self._expected_state.append(self._state.SYMBOLLIST)
         if (self.word["type"] == self.TOKENS.SYMBOL):
-            sl_node.add_child(tree.Node(self.word["value"], self._type.T))
+            sl_node.add_child(tree.Node(self.word["value"], self._type.UNKNOWN))
             self.next_word()
             valid, result = self.is_symbol_list_p()
             if (valid):
@@ -474,16 +437,13 @@ class Parser(CompilerBase):
         SL' -> SYMBOL SL'
             | EPSILON
         """
-        import pdb
-        pdb.set_trace()
         slp_node = tree.Node(self._state.SYMBOLLIST_P, self._type.NT)
         if self.is_epsilon():
             return (True, slp_node)
         elif (self.word["type"] == self.TOKENS.SYMBOL):
-            self.next_word()
-
             slp_node.add_child(tree.Node(self.word["value"], 
                                         self._type.UNKNOWN)) 
+            self.next_word()
             valid, result = self.is_symbol_list_p()
             if (valid):
                 slp_node.add_child(result)
@@ -494,6 +454,9 @@ class Parser(CompilerBase):
         """
         Check if word is epsilon
         """
+        #ASSUME: RHS has to be a epsilon production
+        if (self.expected_state == self._state.RHS):
+            assert (self.word["type"] == self.TOKENS.EPSILON)
         if (self.word["type"] == self.TOKENS.EPSILON):
             return True
         elif (self.expected_state == self._state.SYMBOLLIST):
@@ -502,7 +465,10 @@ class Parser(CompilerBase):
                 (self.word["type"] == self.TOKENS.ALSODERIVES)
                ):
                 return True
-        elif (self.expected_state == self._state.PRODUCTIONSET):
+        elif (
+                (self.expected_state == self._state.PRODUCTIONSET) |
+                (self.expected_state == self._state.PRODUCTIONSET_P)
+             ):
             if (self.word["type"] == self.TOKENS.SEMICOLON):
                 return True
         elif (self.expected_state == self._state.PRODUCTIONLIST):
@@ -515,22 +481,20 @@ class Parser(CompilerBase):
         """
         Dump out information regarding failure
         """
-        import pdb
-        pdb.set_trace()
-        print ("failure")
         error_msg = ""
         word = self.word
         error_msg += "error!\n"
         error_msg += "expected: " + str(self._state.get_key_for_value(self.expected_state)) +\
                      "\n"
-        error_msg += "got: " + str(word["type"]) + "\n"
+        error_msg += "got: " + str(self.TOKENS.get_key_for_value(word["type"])) + "\n"
         error_msg += "line number: " + str(word["lino"]) + "\n"
         error_msg += "word: " + word['value'] + "\n"
         print (error_msg) 
         print (self.input_raw)
         from pprint import pprint
-        pprint(self.input_scan)
+        #pprint(self.input_scan)
         pprint(self.input_raw)
+        exit()
         #TODO: attempt recovery
         return False
 
@@ -540,7 +504,7 @@ class Parser(CompilerBase):
         Run parser
         """
         if self.is_grammar():
-            return True
+            return (True, self.ast)
         else:
             return self.fail()
 
@@ -560,14 +524,21 @@ class Parser(CompilerBase):
 
 
 if __name__ == "__main__":
+    DEBUG = False
     sl = simplelog.sl
     sl.quiet()
     sl.debug("=========")
     sl.debug("new trial")
-    s = Scanner("test/RRSheepNoise.txt")
+#    s = Scanner("test/RRSheepNoise.txt")
+#    r = s.execute()
+#    p = Parser(r, s.bnf_file)
+#    r_p = p.execute()
+
+    s = Scanner("test/RRCEG.txt")
     r = s.execute()
     p = Parser(r, s.bnf_file)
     r_p = p.execute()
+
 
     
 

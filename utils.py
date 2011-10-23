@@ -11,13 +11,20 @@ class Enum(dict):
         """
         Initialize with default start value of 0 but this can be changed
         with keyword argument start
+        @param:
+        start - set starting element
+        verbose - display values by value instead of number
         """
         super(Enum, self).__init__()
+        self.verbose = None
 
         if kwargs.has_key("start"):
             start = kwargs["start"]
         else:
             start = 0
+        
+        if kwargs.has_key("verbose"):
+            self.verbose = kwargs["verbose"]
 
         for num, arg in enumerate(args, start):
             self.__setitem__(arg, num)
@@ -27,6 +34,12 @@ class Enum(dict):
         Return attribute if it exists in the dictionary
         """
         if self.__contains__(name):
+            if (self.verbose):
+                if (name in self.keys()):
+                    return name
+                else:
+                    #TODO: this keyerror does not get raised
+                    raise KeyError(name + "not in keys")
             return self.__getitem__(name)
 
     def get_key_for_value(self, value):
@@ -35,6 +48,9 @@ class Enum(dict):
         >>> t = Enum("A", "B", "C")
         >>> t.get_key_for_value(1)
         'B'
+        >>> t.verbose = True
+        >>> t.A
+        'A'
         """
         return filter(lambda x: x[1] == value, self.items())[0][0]
     

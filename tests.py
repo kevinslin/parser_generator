@@ -96,15 +96,29 @@ class TestScanner(unittest.TestCase):
 
 class TestParser(unittest.TestCase):
     def setUp(self):
-        self.scanner = compiler.Scanner("test/RRSheepNoise.txt")
-        self.parser = compiler.Parser(self.scanner.execute(), 
-                                        self.scanner.bnf_file)
+        self.scanner_sheep = compiler.Scanner("test/RRSheepNoise.txt")
+        self.parser_sheep = compiler.Parser(self.scanner_sheep.execute(), 
+                                        self.scanner_sheep.bnf_file)
+        self.scanner_p = compiler.Scanner("test/P1.txt")
+        self.parser_p = compiler.Parser(self.scanner_p.execute(), 
+                                        self.scanner_p.bnf_file)
 
-    def test_parser(self):
-        r = self.parser.execute()
-        self.assertTrue(r == True)
-        return 
+        self.scanner_ceg = compiler.Scanner("test/RRCEG.txt")
+        self.parser_ceg = compiler.Parser(self.scanner_ceg.execute(), 
+                                        self.scanner_ceg.bnf_file)
 
+    def test_sheep_noise(self):
+        r = self.parser_sheep.execute()
+        self.assertTrue(r[0] == True)
+        #TODO: test the parse tree
+
+    def test_p_noise(self):
+        r = self.parser_p.execute()
+        self.assertTrue(r[0] == True)
+
+    def test_ceg_noise(self):
+        r = self.parser_ceg.execute()
+        self.assertTrue(r[0] == True)
 
     def tearDown(self):
         return
