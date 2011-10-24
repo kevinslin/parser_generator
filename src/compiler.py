@@ -7,10 +7,15 @@ from pylibs.data_structures import graph, tree
 
 class CompilerBase(object):
     """
-    Base object used by scanner and parser
-    Holds the regular expressions
+    Base object used by scanner and parser.
     """
     def __init__(self):
+        """
+        Initialize the compiler
+        @param:
+        debug - if true, print verbose output in Enum data types,
+                looks for a global DEBUG variable. 
+        """
         self.DFA = []
         self.DFA_TABLE = [] #tuple object (token type, token dfa) 
         self.debug = False
@@ -19,6 +24,34 @@ class CompilerBase(object):
         self.TOKENS = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
                             "EPSILON", "SYMBOL", "EOF",
                             verbose = self.debug)
+
+class Scanner(CompilerBase):
+    """
+    Scanner for BNF grammar
+    """
+    @simplelog.dump_func(func_name_only = True)
+    def __init__(self, filename):
+        """
+        Scanner that takes a Back Naur Form (BNF) input
+        file and tokenizes it 
+        @param:
+        filename - input file with bnf text
+        """
+        super(Scanner, self).__init__()
+        self.output = []
+        self.bnf_file = None
+        self.cursor = 0
+        self.file_length = 0
+
+        #initialization
+        self._get_input(filename)
+        self.initialize()
+    
+    def initialize(self):
+        """
+        Initialize the dfa tables
+        """
+        self._initialize_dfa()
 
     @simplelog.dump_func(func_name_only = True)
     def _initialize_dfa(self, *args, **kwargs):
@@ -114,32 +147,7 @@ class CompilerBase(object):
         for key in r[2]:
             r[2][key] = name
         return r
-    
-    def initialize(self):
-        """
-        Initialize DFA tables
-        """
-        self._initialize_dfa()
 
-
-
-        
-class Scanner(CompilerBase):
-    @simplelog.dump_func(func_name_only = True)
-    def __init__(self, filename):
-        """
-        Scanner that takes a Back Naur Form (BNF) input
-        file and tokenizes it 
-        """
-        super(Scanner, self).__init__()
-        self.output = []
-        self.bnf_file = None
-        self.cursor = 0
-        self.file_length = 0
-
-        #initialization
-        self._get_input(filename)
-        self.initialize()
     
     def _get_input(self, filename):
         """
@@ -251,10 +259,16 @@ class Scanner(CompilerBase):
         return self.output
 
 class Parser(CompilerBase):
+    """
+    Parser for bnf grammar. Uses a recursive descent parser
+    """
     def __init__(self, input_scan, input_raw):
         """
         Parser for bnf langauge
         Build a parse tree for language
+        @parser:
+        input_scan - tokenized output of scanner
+        input_raw - input text of bnf file 
         """
         super(Parser, self).__init__()
         self.input_raw = input_raw
@@ -529,16 +543,21 @@ if __name__ == "__main__":
     sl.quiet()
     sl.debug("=========")
     sl.debug("new trial")
-#    s = Scanner("test/RRSheepNoise.txt")
-#    r = s.execute()
-#    p = Parser(r, s.bnf_file)
-#    r_p = p.execute()
 
-    s = Scanner("test/RRCEG.txt")
+    s = Scanner("test/RRSheepNoise.txt")
     r = s.execute()
     p = Parser(r, s.bnf_file)
     r_p = p.execute()
+    print(r_p)
+    r_p[1].dump()
+
+    #s = Scanner("test/RRCEG.txt")
+    #r = s.execute()
+    #p = Parser(r, s.bnf_file)
+    #r_p = p.execute()
+    #print(r_p)
+    #r_p[1].dump()
 
 
-    
+
 

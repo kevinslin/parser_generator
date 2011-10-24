@@ -1,0 +1,10 @@
+Roadmap:
+=======
+
+0.1:
+- simplelog class         [done] 
+- var_dump equivalent
+
+0.2
+- setup.py script
+- publish on pip
