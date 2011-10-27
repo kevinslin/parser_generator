@@ -21,6 +21,7 @@ class CompilerBase(object):
         self.debug = False
         if globals().has_key("DEBUG"):
             self.debug = globals()["DEBUG"]
+        #TODO: make eof something that can't appear in the grammar 
         self.TOKENS = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
                             "EPSILON", "SYMBOL", "EOF",
                             verbose = self.debug)

@@ -31,6 +31,7 @@ class TableGenerator(compiler.CompilerBase):
         #dfs state
         self.IR = collections.defaultdict(list)
         self.FIRST = {}
+        self.FOLLOW = {}
         #self.SYMBOL_TABLE = {}
 
         self.NT = set()
@@ -49,9 +50,8 @@ class TableGenerator(compiler.CompilerBase):
         into hash table
         """
         self.classify_symbols()
-        import pdb
-        pdb.set_trace()
         self.first_set()
+        self.follow_set()
 
     def classify_symbols(self):
         """
@@ -77,8 +77,6 @@ class TableGenerator(compiler.CompilerBase):
         while (CHANGING):
             CHANGING = False
             for p in self.IR:
-                import pdb
-                pdb.set_trace()
                 rhs_old = self.FIRST[p]  #[["baa"], ["sheepnoise"] 
                 rhs = set()
                 productions = self.IR[p]  #Expr'  -> + Term Expr'
@@ -91,7 +89,43 @@ class TableGenerator(compiler.CompilerBase):
                 if (rhs_old != rhs): #FIXME: make this more efficient
                     CHANGING = True
         return self.FIRST
-            
+
+    def follow_set(self):
+        """
+        Find follow set of given grammar
+        """
+        for sym in self.NT:
+            self.FOLLOW[sym] = set()
+        #TODO: assume start symbol is goal, is this always the case?
+        assert("GOAL" in self.FOLLOW)
+        self.FOLLOW["GOAL"].add(self.TOKENS.EOF)
+
+        CHANGING = True
+        while (CHANGING):
+            CHANGING = False
+            #TODO: impose order on these productions
+            for p in self.IR:
+                trailer = self.FOLLOW(p)
+                sl.info("trailer is: " + trailer)
+                first = self.FIRST[p]
+                productions = self.IR[p]
+                for expansion in productions:
+                    size = len(expansion)
+                    for i in xrange(size, 0, -1):
+                        symbol = expansion[i]
+                        if (symbol in self.NT):
+                            follow_old = self.FOLLOW[symbol]
+                            self.FOLLOW(symbol).update(trailer)
+                            if (follow_old != self.FOLLOW(symbol)): #FIXME: make more efficient
+                                CHANGING = True
+                            if (self.TOKENS.EPSILON in self.FIRST[symbol]):
+                                trailer.update(self.FIRST[symbol].difference(set([self.TOKENS.EPSILON])))
+                            else:
+                               trailer.update(self.FIRST[symbol])
+                        else:
+                            trailer = self.FIRST[symbol]
+
+
 
     #FIXME: obsolete?
     def _first(self, symbol):
