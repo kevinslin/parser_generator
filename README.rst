@@ -1,6 +1,7 @@
 Grading
 -------
 Activate Virtualenv:
+#Using the bash shell
 source /storage-home/k/ksl3/School/comp412/default-env/bin/activate
 
 Tests:

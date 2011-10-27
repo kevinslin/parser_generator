@@ -60,18 +60,19 @@ class SimpleLog(logging.Logger):
     def __init__(self, name="simplelog", level=logging.NOTSET, 
                     path = None, verbose = False):        
         super(SimpleLog, self).__init__(name, level)
-        self.DIVIDER = "=========="
-
-        self.sl_debug = logging.getLogger('alog')
-
-
-        self.sh = logging.StreamHandler()
-        self.sh.setFormatter(SIMPLE_FORMATTER)
 
         if (path == None):
             path = os.path.join(os.getcwd(), "simplelog.log")
         elif(path == "tmp"):
             path = "/tmp/simplelog.log"
+        #State
+        self.DIVIDER = "=========="
+        self.path = path
+        self.sl_debug = logging.getLogger('alog')
+
+        self.sh = logging.StreamHandler()
+        self.sh.setFormatter(SIMPLE_FORMATTER)
+
         fh = logging.FileHandler(filename=path)
         fh.setFormatter(SIMPLE_FORMATTER)
 
@@ -89,6 +90,12 @@ class SimpleLog(logging.Logger):
         """
         self.handlers = [] #could this result in a memory leak?
         assert(self.handlers == [])
+    
+    def enable(self):
+        """
+        Enable simplelog
+        """
+        self.__init__(path = self.path)
 
     def quiet(self):
         """

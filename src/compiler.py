@@ -24,6 +24,10 @@ class CompilerBase(object):
         self.TOKENS = Enum("SEMICOLON", "DERIVES", "ALSODERIVES",
                             "EPSILON", "SYMBOL", "EOF",
                             verbose = self.debug)
+        self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
+                            "RIGHTHANDSIDE", "SYMBOLLIST", "SYMBOLLIST_P",
+                            "PRODUCTIONSET_P", "PRODUCTIONLIST_P", start = 6, 
+                            verbose = self.debug)
 
 class Scanner(CompilerBase):
     """
@@ -276,10 +280,6 @@ class Parser(CompilerBase):
         self.index = 0
         self.word = "" 
 
-        self._state = Enum("GRAMMAR", "PRODUCTIONLIST", "PRODUCTIONSET",
-                            "RIGHTHANDSIDE", "SYMBOLLIST", "SYMBOLLIST_P",
-                            "PRODUCTIONSET_P", "PRODUCTIONLIST_P", start = 6, 
-                            verbose = self.debug)
         self._type = Enum("NT", "T", "UNKNOWN", verbose = self.debug)
         self._expected_state = []
         self.output = []
@@ -316,14 +316,14 @@ class Parser(CompilerBase):
         Check if a word is a production list
         ProductionList -> ProductionSet SEMICOLON ProductionList'
         """
-        pl_node = tree.Node(self._state.PRODUCTIONLIST, self._type.NT)
+        pl_node = tree.Node("", self._state.PRODUCTIONLIST)
         self._expected_state.append(self._state.PRODUCTIONLIST)
 
         valid, result = self.is_production_set()
         if (valid):
             pl_node.add_child(result)
             if (self.word["type"] == self.TOKENS.SEMICOLON):
-                pl_node.add_child(tree.Node(self.TOKENS.SEMICOLON, self._type.T))
+                pl_node.add_child(tree.Node(";", self.TOKENS.SEMICOLON))
                 self.next_word()
                 valid, result = self.is_production_list_p()
                 if (valid):
@@ -338,7 +338,7 @@ class Parser(CompilerBase):
         ProductionList' -> ProductionSet SEMICOLON ProductionSet'
                         | EPSILON
         """
-        plp_node = tree.Node(self._state.PRODUCTIONLIST_P, self._type.NT)
+        plp_node = tree.Node("", self._state.PRODUCTIONLIST_P)
         if (self.is_epsilon()):
             return (True, plp_node)
         else:
@@ -346,7 +346,7 @@ class Parser(CompilerBase):
             if (valid):
                 plp_node.add_child(result)
                 if (self.word['type'] == self.TOKENS.SEMICOLON):
-                    plp_node.add_child(tree.Node(self.TOKENS.SEMICOLON, self._type.T))
+                    plp_node.add_child(tree.Node(";", self.TOKENS.SEMICOLON))
                     self.next_word()
                     valid, result = self.is_production_list_p()
                     if (valid):
@@ -360,14 +360,14 @@ class Parser(CompilerBase):
         Check if word is a production set
         ProductionSet -> SYMBOL DERIVES RightHandSide PS'
         """
-        ps_node = tree.Node(self._state.PRODUCTIONSET, self._type.NT)
+        ps_node = tree.Node("", self._state.PRODUCTIONSET)
         self._expected_state.append(self._state.PRODUCTIONSET)
 
         if (self.word["type"] == self.TOKENS.SYMBOL):
-            ps_node.add_child(tree.Node(self.word["value"],self._type.NT)) 
+            ps_node.add_child(tree.Node(self.word["value"],self.TOKENS.SYMBOL)) 
             self.next_word()
             if (self.word["type"] == self.TOKENS.DERIVES):
-                ps_node.add_child(tree.Node(self.TOKENS.DERIVES, self._type.NT))
+                ps_node.add_child(tree.Node(":", self.TOKENS.DERIVES))
                 self.next_word()
                 valid, result = self.is_right_hand_side()
                 if (valid):
@@ -385,14 +385,14 @@ class Parser(CompilerBase):
         ProductionSet' -> ALSODERIVES PS'
                         | EPSILON
         """
-        psp_node = tree.Node(self._state.PRODUCTIONSET_P, self._type.NT)
+        psp_node = tree.Node("", self._state.PRODUCTIONSET_P)
         self._expected_state.append(self._state.PRODUCTIONSET_P)
 
         if(self.is_epsilon()):
             self._expected_state.pop()
             return (True, psp_node)
         elif (self.word["type"] == self.TOKENS.ALSODERIVES):
-            psp_node.add_child(tree.Node(self.TOKENS.ALSODERIVES, self._type.T))
+            psp_node.add_child(tree.Node("|", self.TOKENS.ALSODERIVES))
             self.next_word()
             valid, result = self.is_right_hand_side()
             if (valid):
@@ -411,7 +411,7 @@ class Parser(CompilerBase):
         RH -> Symbolist 
             | Epsilon
         """
-        rh_node = tree.Node(self._state.RIGHTHANDSIDE, self._type.NT)
+        rh_node = tree.Node("", self._state.RIGHTHANDSIDE)
         self._expected_state.append(self._state.RIGHTHANDSIDE)
 
         if(self.is_epsilon()):
@@ -432,10 +432,10 @@ class Parser(CompilerBase):
         Check if word is valid symbolist
         SL ->  SYMBOL SL'
         """
-        sl_node = tree.Node(self._state.SYMBOLLIST, self._type.NT)
+        sl_node = tree.Node("", self._state.SYMBOLLIST)
         self._expected_state.append(self._state.SYMBOLLIST)
         if (self.word["type"] == self.TOKENS.SYMBOL):
-            sl_node.add_child(tree.Node(self.word["value"], self._type.UNKNOWN))
+            sl_node.add_child(tree.Node(self.word["value"], self.TOKENS.SYMBOL))
             self.next_word()
             valid, result = self.is_symbol_list_p()
             if (valid):
@@ -451,12 +451,12 @@ class Parser(CompilerBase):
         SL' -> SYMBOL SL'
             | EPSILON
         """
-        slp_node = tree.Node(self._state.SYMBOLLIST_P, self._type.NT)
+        slp_node = tree.Node("", self._state.SYMBOLLIST_P)
         if self.is_epsilon():
             return (True, slp_node)
         elif (self.word["type"] == self.TOKENS.SYMBOL):
-            slp_node.add_child(tree.Node(self.word["value"], 
-                                        self._type.UNKNOWN)) 
+            slp_node.add_child(tree.Node(self.word["value"],
+                                self.TOKENS.SYMBOL)) 
             self.next_word()
             valid, result = self.is_symbol_list_p()
             if (valid):
@@ -538,7 +538,7 @@ class Parser(CompilerBase):
 
 
 if __name__ == "__main__":
-    DEBUG = False
+    DEBUG = True
     sl = simplelog.sl
     sl.quiet()
     sl.debug("=========")

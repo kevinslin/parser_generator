@@ -79,7 +79,7 @@ def bfs(g, startnode, **kwargs):
 
     acc_transition = 0
     while (len(Q)>0) :
-        state = Q.popleft() # FIFA policy
+        state = Q.popleft() # FILO policy
         neighbors = g[state]
         for h in neighbors:
             if h in W: #don't process nodes in W, not unique
@@ -100,6 +100,7 @@ def bfs(g, startnode, **kwargs):
             Q.append(h)
         W.add(state)
     return table_classifier, table_transition, table_token_type, W
+
 
 
 
