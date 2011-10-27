@@ -97,46 +97,35 @@ class TableGenerator(compiler.CompilerBase):
         for sym in self.NT:
             self.FOLLOW[sym] = set()
         #TODO: assume start symbol is goal, is this always the case?
-        assert("GOAL" in self.FOLLOW)
-        self.FOLLOW["GOAL"].add(self.TOKENS.EOF)
+        assert("Goal" in self.FOLLOW)
+        self.FOLLOW["Goal"].add(self.TOKENS.EOF)
 
         CHANGING = True
         while (CHANGING):
             CHANGING = False
             #TODO: impose order on these productions
             for p in self.IR:
-                trailer = self.FOLLOW(p)
-                sl.info("trailer is: " + trailer)
-                first = self.FIRST[p]
+                trailer = self.FOLLOW[p]
+                sl.info("trailer is: " + str(trailer))
                 productions = self.IR[p]
                 for expansion in productions:
+                    import pdb
+                    pdb.set_trace()
                     size = len(expansion)
-                    for i in xrange(size, 0, -1):
+                    for i in xrange(size - 1, -1, -1):
                         symbol = expansion[i]
                         if (symbol in self.NT):
                             follow_old = self.FOLLOW[symbol]
-                            self.FOLLOW(symbol).update(trailer)
-                            if (follow_old != self.FOLLOW(symbol)): #FIXME: make more efficient
+                            self.FOLLOW[symbol].update(trailer)
+                            if (follow_old != self.FOLLOW[symbol]): #FIXME: make more efficient
                                 CHANGING = True
+                                sl.info("found new follow set")
                             if (self.TOKENS.EPSILON in self.FIRST[symbol]):
                                 trailer.update(self.FIRST[symbol].difference(set([self.TOKENS.EPSILON])))
                             else:
                                trailer.update(self.FIRST[symbol])
                         else:
                             trailer = self.FIRST[symbol]
-
-
-
-    #FIXME: obsolete?
-    def _first(self, symbol):
-        """
-        Return a list of symbols
-        """
-        translation = self.IR[symbol]
-        first = []
-        for production in translation:
-            first.append(production[0])
-        return first
 
 
     def dfs(self, node):

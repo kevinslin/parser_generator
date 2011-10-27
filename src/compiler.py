@@ -473,23 +473,23 @@ class Parser(CompilerBase):
         if (self.expected_state == self._state.RHS):
             assert (self.word["type"] == self.TOKENS.EPSILON)
         if (self.word["type"] == self.TOKENS.EPSILON):
-            return True
+            return (True, self.TOKENS.EPSILON)
         elif (self.expected_state == self._state.SYMBOLLIST):
             if ( 
                 (self.word["type"] == self.TOKENS.SEMICOLON) | 
                 (self.word["type"] == self.TOKENS.ALSODERIVES)
                ):
-                return True
+                return (True, set())
         elif (
                 (self.expected_state == self._state.PRODUCTIONSET) |
                 (self.expected_state == self._state.PRODUCTIONSET_P)
              ):
             if (self.word["type"] == self.TOKENS.SEMICOLON):
-                return True
+                return (True, set())
         elif (self.expected_state == self._state.PRODUCTIONLIST):
             if (self.word["type"] == self.TOKENS.EOF):
-                return True
-        return False
+                return (True, set())
+        return (False, set())
 
     @simplelog.dump_func()
     def fail(self):
@@ -545,19 +545,19 @@ if __name__ == "__main__":
     sl.debug("=========")
     sl.debug("new trial")
 
-    s = Scanner("test/RRSheepNoise.txt")
-    r = s.execute()
-    p = Parser(r, s.bnf_file)
-    r_p = p.execute()
-    print(r_p)
-    r_p[1].dump()
-
-    #s = Scanner("test/RRCEG.txt")
+    #s = Scanner("test/RRSheepNoise.txt")
     #r = s.execute()
     #p = Parser(r, s.bnf_file)
     #r_p = p.execute()
     #print(r_p)
     #r_p[1].dump()
+
+    s = Scanner("test/RRCEG.txt")
+    r = s.execute()
+    p = Parser(r, s.bnf_file)
+    r_p = p.execute()
+    print(r_p)
+    r_p[1].dump()
 
 
 
