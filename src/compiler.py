@@ -340,7 +340,9 @@ class Parser(CompilerBase):
                         | EPSILON
         """
         plp_node = tree.Node("", self._state.PRODUCTIONLIST_P)
-        if (self.is_epsilon()):
+        valid, result = self.is_epsilon()
+        if (valid):
+            plp_node.add_child(result)
             return (True, plp_node)
         else:
             valid, result = self.is_production_set()
@@ -389,7 +391,9 @@ class Parser(CompilerBase):
         psp_node = tree.Node("", self._state.PRODUCTIONSET_P)
         self._expected_state.append(self._state.PRODUCTIONSET_P)
 
-        if(self.is_epsilon()):
+        valid, result = self.is_epsilon()
+        if(valid):
+            psp_node.add_child(result)
             self._expected_state.pop()
             return (True, psp_node)
         elif (self.word["type"] == self.TOKENS.ALSODERIVES):
@@ -415,7 +419,9 @@ class Parser(CompilerBase):
         rh_node = tree.Node("", self._state.RIGHTHANDSIDE)
         self._expected_state.append(self._state.RIGHTHANDSIDE)
 
-        if(self.is_epsilon()):
+        valid, result = self.is_epsilon()
+        if(valid):
+            rh_node.add_child(result)
             self.next_word() #epsilon consumes input in right hand side
             self._expected_state.pop()
             return (True, rh_node)
@@ -453,7 +459,9 @@ class Parser(CompilerBase):
             | EPSILON
         """
         slp_node = tree.Node("", self._state.SYMBOLLIST_P)
-        if self.is_epsilon():
+        valid, result = self.is_epsilon()
+        if (valid):
+            slp_node.add_child(result)
             return (True, slp_node)
         elif (self.word["type"] == self.TOKENS.SYMBOL):
             slp_node.add_child(tree.Node(self.word["value"],
@@ -470,32 +478,38 @@ class Parser(CompilerBase):
         Check if word is epsilon
         """
         #ASSUME: RHS has to be a epsilon production
+        empty_node = tree.Node("", "")
         if (self.expected_state == self._state.RHS):
             assert (self.word["type"] == self.TOKENS.EPSILON)
         if (self.word["type"] == self.TOKENS.EPSILON):
-            return (True, self.TOKENS.EPSILON)
+            import pdb
+            pdb.set_trace()
+            epsilon = tree.Node("EPSILON", self.TOKENS.EPSILON)
+            return (True, epsilon)
         elif (self.expected_state == self._state.SYMBOLLIST):
             if ( 
                 (self.word["type"] == self.TOKENS.SEMICOLON) | 
                 (self.word["type"] == self.TOKENS.ALSODERIVES)
                ):
-                return (True, set())
+                return (True, empty_node)
         elif (
                 (self.expected_state == self._state.PRODUCTIONSET) |
                 (self.expected_state == self._state.PRODUCTIONSET_P)
              ):
             if (self.word["type"] == self.TOKENS.SEMICOLON):
-                return (True, set())
+                return (True, empty_node)
         elif (self.expected_state == self._state.PRODUCTIONLIST):
             if (self.word["type"] == self.TOKENS.EOF):
-                return (True, set())
-        return (False, set())
+                return (True, empty_node)
+        return (False, empty_node)
 
     @simplelog.dump_func()
     def fail(self):
         """
         Dump out information regarding failure
         """
+        import pdb
+        pdb.set_trace()
         error_msg = ""
         word = self.word
         error_msg += "error!\n"

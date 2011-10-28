@@ -35,12 +35,17 @@ class Enum(dict):
         """
         if self.__contains__(name):
             if (self.verbose):
-                if (name in self.keys()):
-                    return name
-                else:
-                    #TODO: this keyerror does not get raised
-                    raise KeyError(name + "not in keys")
+                return self.get_key_for_key(name)
             return self.__getitem__(name)
+
+    def get_key_for_key(self, key):
+        """
+        Return key given key
+        """
+        if (key in self):
+            return key
+        else:
+            raise KeyError("invalid key")
 
     def get_key_for_value(self, value):
         """
@@ -52,7 +57,10 @@ class Enum(dict):
         >>> t.A
         'A'
         """
-        return filter(lambda x: x[1] == value, self.items())[0][0]
+        if (self.verbose):
+            return self.get_key_for_key(value)
+        else:
+            return filter(lambda x: x[1] == value, self.items())[0][0]
     
 def bfs(g, startnode, **kwargs):
     """
@@ -79,7 +87,7 @@ def bfs(g, startnode, **kwargs):
 
     acc_transition = 0
     while (len(Q)>0) :
-        state = Q.popleft() # FILO policy
+        state = Q.popleft() # FIFO policy
         neighbors = g[state]
         for h in neighbors:
             if h in W: #don't process nodes in W, not unique
