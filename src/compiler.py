@@ -195,6 +195,7 @@ class Scanner(CompilerBase):
         tuple object (value, state) 
         """
         _STATE = Enum("ERROR", "BAD", start = -2)
+        cursor_pos = self.cursor
         
         #Try every regex to try to get a valid word
         for table_classifier, table_transition, table_token_type, state_legal in \
@@ -222,7 +223,6 @@ class Scanner(CompilerBase):
                 state = stack.popleft()
                 lexeme = lexeme[:-1]
                 self.rollback()
-
                 if (lexeme == ""):
                     break
             if state in state_legal:
@@ -230,6 +230,7 @@ class Scanner(CompilerBase):
                 try:
                     return (lexeme, table_token_type[state])
                 except KeyError:
+                    self.cursor = cursor_pos #reset the cursor 
                     continue
                 #TODO: too much roll back error?
         return (False, False)
@@ -482,8 +483,6 @@ class Parser(CompilerBase):
         if (self.expected_state == self._state.RHS):
             assert (self.word["type"] == self.TOKENS.EPSILON)
         if (self.word["type"] == self.TOKENS.EPSILON):
-            import pdb
-            pdb.set_trace()
             epsilon = tree.Node("EPSILON", self.TOKENS.EPSILON)
             return (True, epsilon)
         elif (self.expected_state == self._state.SYMBOLLIST):

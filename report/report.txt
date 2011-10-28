@@ -1,0 +1,15 @@
+Scanner:
+
+Implemented a table dirven scanner.
+The main logic lies in the nextword() fucntion.
+Starts of at so which is a valid state and with the lexeme set to "".
+It then clears the stack and initiates it with a "bad" state.
+
+We then enter the first while loop. 
+First we get the next character and add it to the current lexeme. We check if the state is still legal.
+If so, we clear the stack and push the new state into the stack. 
+We then look up the category of the given word in the classifier table and use it and the state to look
+for the next transition in the transition table. If we get a valid state, we continue, if not, we set our state
+to the error state, which will cause us to break out of the while loop.
+
+The second while loop is responsible for roolback. As long as the we're not in a legal state and the state isn't bad, we roll back. 
